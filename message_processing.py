@@ -4,10 +4,10 @@ from typing import Any
 
 from langchain_core.messages import HumanMessage, AIMessageChunk
 from langchain_core.runnables import RunnableConfig
+from langchain_core.tracers import ConsoleCallbackHandler
 from langgraph.pregel.io import AddableValuesDict
 import chainlit as cl
 
-from audio_processing import get_audio_response
 from config import RECURSION_LIMIT, MPV_INSTALLED
 from utils import handle_error
 
@@ -47,6 +47,7 @@ async def process_standard_output(res: Any, from_audio: bool = False):
 
         if from_audio:
             try:
+                from audio_processing import get_audio_response
                 audio_elt = cl.Audio(content=get_audio_response(full_text_response))
                 audio_elt.auto_play = True
                 msg.elements += [audio_elt]
@@ -97,7 +98,7 @@ async def on_message(message: cl.Message):
             cl.AsyncLangchainCallbackHandler(
                 to_ignore=["__start__", "Prompt", "_write"],
             ),
-            cl.ConsoleCallbackHandler()], configurable=dict([("thread_id", thread_id)]), recursion_limit=RECURSION_LIMIT)
+            ConsoleCallbackHandler()], configurable=dict([("thread_id", thread_id)]), recursion_limit=RECURSION_LIMIT)
 
         res = await app.ainvoke(inputs, config=runnable_config)
 

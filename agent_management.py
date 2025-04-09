@@ -6,6 +6,7 @@ import inspect
 from datetime import datetime
 
 import chainlit as cl
+from langchain_core.tools import StructuredTool, BaseTool
 from langgraph.prebuilt import create_react_agent
 from config import JARVIS_NAME
 from models.models import get_google_model
@@ -34,8 +35,11 @@ def get_all_tools():
 
                 # Iterate through all objects in the module
                 for name, obj in inspect.getmembers(module):
+                    if name == 'cl':
+                        continue
+
                     # Check if the object is a function and doesn't start with an underscore
-                    if inspect.isfunction(obj) and hasattr(obj, "tool"):
+                    if isinstance(obj, BaseTool):
                         tools.append(obj)
                         logger.info(f"Loaded tool: {name} from module {module_name}")
             except ImportError as e:

@@ -17,9 +17,14 @@ logger = logging.getLogger(__name__)
 async def init_chainlit():
     """Initializes the Chainlit session."""
     try:
-        user_id = str(uuid.uuid4()) if cl.context.session.user is None else cl.context.session.user.id
         session_id = str(uuid.uuid4()) if cl.context.session.id is None else cl.context.session.id
-        user_name = "" if cl.context.session.user.identifier is None else cl.context.session.user.identifier
+
+        if cl.context.session.user is not None:
+            user_id = str(uuid.uuid4()) if cl.context.session.user is None else cl.context.session.user.id
+            user_name = "" if cl.context.session.user.identifier is None else cl.context.session.user.identifier
+        else:
+            user_id = str(uuid.uuid4())
+            user_name = "Anonymous"
         thread_id = cl.context.session.thread_id
         now = datetime.datetime.now(datetime.timezone.utc)
 

@@ -8,6 +8,10 @@ from chainlit.cli import run_chainlit
 from chainlit_setup import start, on_chat_resume
 from audio_processing import on_audio_start, on_audio_chunk, on_audio_end
 from message_processing import on_message
+from users import *
+
+import asyncpg
+import boto3
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')

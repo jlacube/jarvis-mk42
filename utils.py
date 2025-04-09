@@ -23,7 +23,7 @@ def load_prompt(prompt_name: str, **kwargs: dict) -> str:
         return str(prompt)
     except Exception as e:
         logging.error(f"Error loading prompt {prompt_name}: {e}")
-        return ""
+        return "You're a very useful assistant"
 
 
 def handle_error(message: str, exception: Exception):
