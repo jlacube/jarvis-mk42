@@ -1,8 +1,9 @@
 # message_processing.py
 import logging
+import os
 from typing import Any
 
-from langchain_core.messages import HumanMessage, AIMessageChunk
+from langchain_core.messages import HumanMessage, AIMessageChunk, SystemMessage
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tracers import ConsoleCallbackHandler
 from langgraph.pregel.io import AddableValuesDict
@@ -62,6 +63,36 @@ async def process_standard_output(res: Any, from_audio: bool = False):
         await cl.Message(content=error_message).send()
 
 
+def load_markdown_file(file_path):
+    """
+    Loads the content of a markdown file.
+
+    Args:
+        file_path (str): The path to the markdown file.
+
+    Returns:
+        str: The content of the markdown file as a string.
+        None: If the file is not found or an error occurs during reading.
+
+    Raises:
+        FileNotFoundError: If the specified file does not exist.
+        IOError: If there is an error reading the file.
+    """
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"Error: The file '{file_path}' was not found.")
+
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        return content
+    except IOError as e:
+        print(f"Error reading file '{file_path}': {e}")
+        raise # Re-raise the exception after printing the message
+    except Exception as e:
+        print(f"An unexpected error occurred while reading '{file_path}': {e}")
+        raise # Re-raise the exception
+
+
 @cl.on_message
 async def on_message(message: cl.Message):
     """Handles incoming messages from the user."""
@@ -83,13 +114,17 @@ async def on_message(message: cl.Message):
         previous_messages = cl.user_session.get("previous_messages")
         from_audio = message.metadata.get("from_audio", False) if message.metadata else False
 
+        #langgraph_md = load_markdown_file("contexts/langgraph.md")
+
         if previous_messages is None:
             inputs = {"messages": [
+                #SystemMessage(content=langgraph_md),
                 # HumanMessage(content="if the question is about coding, always make sure you give back to me all code you received from the coding agent"),
                 HumanMessage(content=message.content)
             ]}
         else:
             inputs = {"messages": previous_messages + [
+                #SystemMessage(content=langgraph_md),
                 # HumanMessage(content="if the question is about coding, always make sure you give back to me all code you received from the coding agent"),
                 HumanMessage(content=message.content)
             ]}

@@ -1,6 +1,7 @@
 # agent_management.py
 import logging
 import importlib
+import os
 import pkgutil
 import inspect
 from datetime import datetime
@@ -18,30 +19,40 @@ logger = logging.getLogger(__name__)
 # Define the package where tools are located
 TOOLS_PACKAGE = "tools"
 
+def get_allowed_tools_from_env(agent_name: str) -> list[str] | None:
+    """
+    Reads the allowed tool list from the .env file for a given agent.
+    Returns None if no tool list is specified or if the .env file is missing.
+    """
+    tool_list_str = os.getenv(f"{agent_name.upper()}_ALLOWED_TOOLS")
+    if tool_list_str:
+        return [tool.strip() for tool in tool_list_str.split(",")]
+    return None
 
-def get_all_tools():
-    """Dynamically discovers and loads all available tools from the 'tools' package,
-    only including functions decorated with @tool.
+def get_all_tools(allowed_tools: list[str] | None = None) -> list[BaseTool]:
+    """
+    Dynamically discovers and loads tools from the 'tools' package.
+    If allowed_tools is specified, only those tools are loaded.
     """
     tools = []
     try:
-        # Get the package object
         package = importlib.import_module(TOOLS_PACKAGE)
 
-        # Iterate through all modules in the package
         for _, module_name, is_pkg in pkgutil.walk_packages(package.__path__, package.__name__ + "."):
             try:
                 module = importlib.import_module(module_name)
 
-                # Iterate through all objects in the module
                 for name, obj in inspect.getmembers(module):
                     if name == 'cl':
                         continue
 
-                    # Check if the object is a function and doesn't start with an underscore
                     if isinstance(obj, BaseTool):
-                        tools.append(obj)
-                        logger.info(f"Loaded tool: {name} from module {module_name}")
+                        if allowed_tools is None or name in allowed_tools:
+                            tools.append(obj)
+                            logger.info(f"Loaded tool: {name} from module {module_name}")
+                        else:
+                            logger.info(f"Tool {name} from module {module_name} is not allowed and will not be loaded.")
+
             except ImportError as e:
                 logger.warning(f"Could not import module {module_name}: {e}")
             except Exception as e:
@@ -58,11 +69,12 @@ def get_all_tools():
     return tools
 
 
-async def create_agent(prompt: str):
+async def create_agent(prompt: str, agent_name: str = JARVIS_NAME) -> any:
     """Creates the agent."""
     try:
         model = get_google_model()
-        tools = get_all_tools()
+        allowed_tools = get_allowed_tools_from_env(agent_name)
+        tools = get_all_tools(allowed_tools)
         app = create_react_agent(
             name=JARVIS_NAME,
             model=model,

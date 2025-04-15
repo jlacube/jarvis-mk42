@@ -7,6 +7,8 @@ from google.genai import types
 from langchain_core.tools import tool, Tool
 from langchain_community.utilities import GoogleSerperAPIWrapper
 from pydantic import SecretStr
+from bs4 import BeautifulSoup
+
 
 perplexity_ai_key = SecretStr(os.getenv('PERPLEXITY_API_KEY'))
 
@@ -141,5 +143,62 @@ async def advanced_research_tool(query: str, max_results: int = 10) -> str:
     response = await async_perplexity_ai(query=query, max_results=max_results)
     return response
 
+
+def fetch_url_content(url: str) -> str:
+    """
+    Fetches the content of a URL and transforms it into a text format suitable for LLMs.
+
+    Args:
+        url (str): The URL to fetch.
+
+    Returns:
+        str: The extracted text content from the URL, or an error message if fetching fails.
+
+    # Proactive Tool Suggestion:
+    # For a more in-depth analysis, I could also employ the `advanced_research_tool` to summarize or extract key insights from the text.
+    """
+
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36'
+    }
+    try:
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()  # Raise HTTPError for bad responses (4xx or 5xx)
+
+        soup = BeautifulSoup(response.content, 'html.parser')
+        text = soup.get_text(separator='\n', strip=True)
+        return text
+    except requests.exceptions.RequestException as e:
+        return f"Error fetching URL '{url}': {str(e)}"
+    except Exception as e:
+        return f"Error processing URL '{url}': {str(e)}"
+
+
+@tool
+def webpage_research_tool(url: str) -> str:
+    """
+    Fetches the raw text content of a specific webpage URL.
+
+    Args:
+        url: The URL of the webpage to fetch.
+
+    Returns:
+        The text content of the webpage or an error message.
+    """
+    return fetch_url_content(url)
+
+
 def get_research_tools() -> list:
-    return [standard_research_tool, advanced_research_tool,google_search_tool]
+    """
+    Returns a list of available research tool functions.
+
+    Includes standard search, advanced research, and a tool to fetch webpage content.
+    """
+    tools = [
+        standard_research_tool,
+        advanced_research_tool,
+        google_search_tool,
+        images_search_tool,
+        webpage_research_tool
+    ]
+    return tools
