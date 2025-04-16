@@ -6,6 +6,9 @@ from openai import OpenAI
 
 import chainlit as cl
 
+from audio_processing import get_audio_response
+
+
 @tool
 async def imager_tool(query: str) -> str:
     """
@@ -97,18 +100,12 @@ async def video_tool(query: str) -> str:
 @tool
 async def vocalizer_tool(query: str) -> str:
     """
-        Use an MLLM to generate an audio file via TTS based on the prompt provided by the user as the query parameter
-        :param query:
-        :return: confirmation that the audio was generated or error if any
-        """
+    Use an MLLM to generate an audio file via TTS based on the prompt provided by the user as the query parameter
+    :param query:
+    :return: confirmation that the audio was generated or error if any
+    """
 
-    response = OpenAI().audio.speech.create(
-        model="tts-1",
-        input=query,
-        voice="alloy"
-    )
-
-    audio_data = response.content
+    audio_data = get_audio_response(query)
 
     await cl.Message(
         content=query,
