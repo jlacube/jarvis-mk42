@@ -29,7 +29,7 @@ def get_allowed_tools_from_env(agent_name: str) -> list[str] | None:
         return [tool.strip() for tool in tool_list_str.split(",")]
     return None
 
-def get_all_tools(allowed_tools: list[str] | None = None) -> list[BaseTool]:
+def get_all_tools(allowed_tools: list[str], user_name: str) -> list[BaseTool]:
     """
     Dynamically discovers and loads tools from the 'tools' package.
     If allowed_tools is specified, only those tools are loaded.
@@ -48,8 +48,15 @@ def get_all_tools(allowed_tools: list[str] | None = None) -> list[BaseTool]:
 
                     if isinstance(obj, BaseTool):
                         if allowed_tools is None or name in allowed_tools:
-                            tools.append(obj)
-                            logger.info(f"Loaded tool: {name} from module {module_name}")
+                            if obj.name == 'video_tool':
+                                if user_name == 'jerome':
+                                    tools.append(obj)
+                                    logger.info(f"Loaded tool: {name} from module {module_name} - allowed for user {user_name}")
+                                else:
+                                    logger.warning(f"Tool excluded: {obj.name} for user {user_name}")
+                            else:
+                                tools.append(obj)
+                                logger.info(f"Loaded tool: {name} from module {module_name} - allowed for user {user_name}")
                         else:
                             logger.info(f"Tool {name} from module {module_name} is not allowed and will not be loaded.")
 
@@ -69,12 +76,12 @@ def get_all_tools(allowed_tools: list[str] | None = None) -> list[BaseTool]:
     return tools
 
 
-async def create_agent(prompt: str, agent_name: str = JARVIS_NAME) -> any:
+async def create_agent(prompt: str, user_name: str = "", agent_name: str = JARVIS_NAME) -> any:
     """Creates the agent."""
     try:
         model = get_google_model()
         allowed_tools = get_allowed_tools_from_env(agent_name)
-        tools = get_all_tools(allowed_tools)
+        tools = get_all_tools(allowed_tools, user_name)
         app = create_react_agent(
             name=JARVIS_NAME,
             model=model,
@@ -101,7 +108,7 @@ async def initialize_agent(now: datetime, user_id: str, session_id: str, user_na
             "thread_id": thread_id
         }
         prompt = load_prompt(SUPERVISOR_PROMPT_NAME, **prompt_kwargs)
-        app = await create_agent(prompt)
+        app = await create_agent(prompt, user_name)
         return app
     except Exception as e:
         error_message = handle_error("Error initializing agent", e)
