@@ -19,11 +19,11 @@ async def get_reasoning_agent() -> CompiledGraph:
 
     # Filter the explicitly listed tools based on allowed_tools
     explicitly_listed_tools = [sequential_thinking_tool, generate_summary, clear_history, reasoning_model_tool]
-    filtered_explicitly_listed_tools = [tool for tool in explicitly_listed_tools if tool.__name__ in (allowed_tools or [])]
+    filtered_explicitly_listed_tools = [tool for tool in explicitly_listed_tools if tool.name in (allowed_tools or [])]
 
     # Get research tools and filter them based on allowed_tools
     research_tools = get_research_tools()
-    filtered_research_tools = [tool for tool in research_tools if tool.__name__ in (allowed_tools or [])]
+    filtered_research_tools = [tool for tool in research_tools if tool.name in (allowed_tools or [])]
 
     # Combine the filtered tools
     tools = filtered_explicitly_listed_tools + filtered_research_tools
