@@ -1,7 +1,7 @@
 import os
 
 import requests
-from chainlit import make_async
+from chainlit import make_async, Video
 from duckduckgo_search import DDGS
 from google.genai import types
 from langchain_core.tools import tool, Tool
@@ -64,6 +64,46 @@ async def images_search_tool(query: str, max_results: int = 10) -> dict:
         })
 
     return {"images": images}
+
+
+@tool
+async def videos_search_tool(query: str, max_results: int = 10) -> dict:
+    """
+    Perform an Video search and return formatted results.
+
+    Args:
+        query (str): The search query
+        max_results (int, optional): Maximum number of results to return. Defaults to 5.
+
+    Returns:
+        videos: Videos search results as a list of videos
+    """
+    google_search = GoogleSerperAPIWrapper()
+    google_search.type = "videos"
+    google_search.k = max_results
+    results = await google_search.aresults(query=query)
+
+    import chainlit as cl
+    msg = cl.Message("Found videos:")
+
+    videos = []
+    for result in results['videos']:
+        msg.elements.append(
+            Video(
+                name="video",
+                url=result.get('videoUrl', result.get('link', None))
+            ))
+
+        videos.append({
+            "type": "video_url",
+            "video_url": {
+                "url": result.get('videoUrl', result.get('link', None))
+            }
+        })
+
+    await msg.send()
+
+    return {"videos": videos}
 
 
 @tool
