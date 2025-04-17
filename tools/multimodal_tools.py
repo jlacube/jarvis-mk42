@@ -87,6 +87,7 @@ async def video_tool(query: str) -> str:
         video_data = operation.response.generated_videos[0].video.video_bytes
     else:
         video_data = client.files.download(file=operation.response.generated_videos[0].video)
+        client.files.delete(name=operation.response.generated_videos[0].video.uri)
         #video_data = requests.get(operation.response.generated_videos[0].video.uri, stream=True).content
 
     await cl.Message(
