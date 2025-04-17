@@ -7,7 +7,7 @@ import inspect
 from datetime import datetime
 
 import chainlit as cl
-from langchain_core.tools import StructuredTool, BaseTool
+from langchain_core.tools import BaseTool
 from langgraph.prebuilt import create_react_agent
 from config import JARVIS_NAME
 from models.models import get_google_model
