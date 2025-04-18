@@ -10,7 +10,9 @@ from langgraph.pregel.io import AddableValuesDict
 import chainlit as cl
 
 from config import RECURSION_LIMIT, MPV_INSTALLED
-from utils import handle_error
+# Assuming extract_images_from_message is in utils.py
+# If it's elsewhere, adjust the import accordingly.
+from utils import handle_error#, extract_images_from_message
 
 logger = logging.getLogger(__name__)
 
@@ -93,10 +95,32 @@ def load_markdown_file(file_path):
         raise # Re-raise the exception
 
 
+def extract_images_from_message(msg: cl.Message):
+    images = []
+
+    if msg.elements is None:
+        return images
+
+    # Processing images exclusively
+    image_files = [file for file in msg.elements if "image" in file.mime]
+
+    for image_file in image_files:
+        # Read the image
+        with open(image_file.path, "rb") as f:
+            image_file.content = f.read()
+
+        images.append(image_file)
+
+    return images
+
 @cl.on_message
 async def on_message(message: cl.Message):
     """Handles incoming messages from the user."""
     try:
+        images = extract_images_from_message(message)
+        if images:
+            cl.user_session.set("images", images)
+
         from chainlit_setup import init_chainlit  # Import here to avoid circular dependency
 
         app = cl.user_session.get("app")
@@ -116,18 +140,17 @@ async def on_message(message: cl.Message):
 
         #langgraph_md = load_markdown_file("contexts/langgraph.md")
 
+        # Prepare inputs for the agent, including previous messages if they exist
+        current_input = HumanMessage(content=message.content)
         if previous_messages is None:
-            inputs = {"messages": [
-                #SystemMessage(content=langgraph_md),
-                # HumanMessage(content="if the question is about coding, always make sure you give back to me all code you received from the coding agent"),
-                HumanMessage(content=message.content)
-            ]}
+            inputs = {"messages": [current_input]}
+            # Initialize previous_messages for the session
+            cl.user_session.set("previous_messages", [current_input])
         else:
-            inputs = {"messages": previous_messages + [
-                #SystemMessage(content=langgraph_md),
-                # HumanMessage(content="if the question is about coding, always make sure you give back to me all code you received from the coding agent"),
-                HumanMessage(content=message.content)
-            ]}
+            inputs = {"messages": previous_messages + [current_input]}
+            # Update previous_messages for the session
+            cl.user_session.set("previous_messages", previous_messages + [current_input])
+
 
         runnable_config = RunnableConfig(callbacks=[
             cl.AsyncLangchainCallbackHandler(
@@ -136,6 +159,13 @@ async def on_message(message: cl.Message):
             ConsoleCallbackHandler()], configurable=dict([("thread_id", thread_id)]), recursion_limit=RECURSION_LIMIT)
 
         res = await app.ainvoke(inputs, config=runnable_config)
+
+        # Store the AI response in the session history as well
+        if isinstance(res, AddableValuesDict) and "messages" in res:
+             ai_response_message = res["messages"][-1]
+             updated_messages = cl.user_session.get("previous_messages")
+             if updated_messages:
+                 cl.user_session.set("previous_messages", updated_messages + [ai_response_message])
 
         await process_standard_output(res, from_audio=from_audio)
 

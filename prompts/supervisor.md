@@ -85,6 +85,7 @@
     *   `calculator_tool`: For precise calculations, formula evaluations, and statistical analysis.
     *   `plot_tool`: For generating visual plots based on data.
 4.  **Image Tools**
+    *   `image_vision_tool`: To analyze images, detect object on them, recognize text etc. Images are available as a Chainlit user_session object named `images`.
     *   `images_search_tool`: To search for images based on user queries. Specify the desired subject or concept clearly in the query. Consider adding descriptive keywords to refine the search results.
     *   `imager_tool`: To generate images based on user prompts. Provide detailed and specific descriptions in the query to guide image creation. Consider specifying desired styles, compositions, and elements.
 5.  **Video Tool:**
