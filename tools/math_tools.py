@@ -2,6 +2,7 @@ import sympy
 import numpy as np  # Although not directly exposed, sympy might use it internally
 import scipy.optimize # Kept for potential future extensions, but nsolve is preferred
 import math
+import logging
 
 from langchain_core.tools import tool
 from sympy.parsing.sympy_parser import (
@@ -152,19 +153,22 @@ async def calculator_tool(expression: str) -> str:
 
     # 7. Error Handling
     except (SyntaxError, TypeError, ValueError) as e:
+        logging.error(f"Error in calculator_tool: {type(e).__name__}: {e}")
         return f"Error: Invalid expression, syntax, or function argument - {type(e).__name__}: {e}"
     except sympy.SympifyError as e:
+        logging.error(f"Error in calculator_tool: Could not parse expression - {e}")
         return f"Error: Could not parse expression - {e}"
     except NotImplementedError as e:
-        # Specific SymPy functions might raise this if a feature is not implemented
+        logging.error(f"Error in calculator_tool: Not implemented - {e}")
         return f"Error: Calculation or feature not implemented in SymPy - {e}"
     except ZeroDivisionError:
+        logging.error("Error in calculator_tool: Division by zero")
         return "Error: Division by zero"
     except AttributeError as e:
-        # Catches errors like calling a method on an inappropriate object type
+        logging.error(f"Error in calculator_tool: Invalid operation or attribute - {e}")
         return f"Error: Invalid operation or attribute - {e}"
     except Exception as e:
-        # Catch any other unexpected errors during parsing or evaluation
+        logging.error(f"Unexpected error in calculator_tool: {type(e).__name__} - {e}")
         return f"An unexpected error occurred: {type(e).__name__} - {e}"
 
 # Example usage (for demonstration):

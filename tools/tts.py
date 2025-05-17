@@ -1,4 +1,5 @@
 import asyncio
+import logging
 
 from elevenlabs import VoiceSettings
 from langchain_community.tools.eleven_labs import ElevenLabsText2SpeechTool
@@ -24,22 +25,23 @@ async def generate_audio_response(text: str) -> str:
     Returns:
         str: confirmation that the audio was generated or error if any
     """
+    try:
+        from elevenlabs import ElevenLabs
+        client = ElevenLabs()
 
-    #tts_tool.stream_speech(text)
+        speech_stream = client.text_to_speech.convert_as_stream(
+            voice_id="wDsJlOXPqcvIUKdLXjDs",
+            output_format="mp3_44100_128",
+            text=text,
+            model_id="eleven_multilingual_v2",
+        )
 
-    from elevenlabs import ElevenLabs
-    client = ElevenLabs()
+        elevenlabs.stream(speech_stream)
 
-    speech_stream = client.text_to_speech.convert_as_stream(
-        voice_id="wDsJlOXPqcvIUKdLXjDs",
-        output_format="mp3_44100_128",
-        text=text,
-        model_id="eleven_multilingual_v2",
-    )
-
-    elevenlabs.stream(speech_stream)
-
-    return "The audio generated has been played to the user"
+        return "The audio generated has been played to the user"
+    except Exception as e:
+        logging.error(f"Error generating audio response: {e}")
+        raise
 
 
 def get_audio_response(text: str) -> bytes:
@@ -52,36 +54,33 @@ def get_audio_response(text: str) -> bytes:
     Returns:
         bytes: audio binary data
     """
+    try:
+        from elevenlabs import ElevenLabs
+        client = ElevenLabs()
 
-    #tts_tool.stream_speech(text)
+        audio_bytes = b''
+        for chunk in client.text_to_speech.convert(
+            voice_id="wDsJlOXPqcvIUKdLXjDs",
+            output_format="mp3_44100_128",
+            text=text,
+            model_id="eleven_multilingual_v2",
+            voice_settings=VoiceSettings(speed=1.2)
+        ):
+            audio_bytes += chunk
 
-    from elevenlabs import ElevenLabs
-    client = ElevenLabs()
-
-    audio_bytes = b''
-    for chunk in client.text_to_speech.convert(
-        voice_id="wDsJlOXPqcvIUKdLXjDs",
-        output_format="mp3_44100_128",
-        text=text,
-        model_id="eleven_multilingual_v2",
-        voice_settings=VoiceSettings(speed=1.2)
-    ):
-        audio_bytes += chunk
-
-    return audio_bytes
-
-    #await cl.Message(
-    #    content=query,
-    #    elements=[cl.Audio(name="audio", content=audio_data)]
-    #).send()
+        return audio_bytes
+    except Exception as e:
+        logging.error(f"Error getting audio response: {e}")
+        raise
 
 
 # Example usage
 async def main():
     try:
-        result = generate_audio_response("Hello, this is a test of ElevenLabs text-to-speech.")
+        result = await generate_audio_response("Hello, this is a test of ElevenLabs text-to-speech.")
         print(f"Audio generated")
     except Exception as e:
+        logging.error(f"Error in main: {e}")
         print(f"Error: {e}")
 
 # To run the main function, you would typically use an async event loop.

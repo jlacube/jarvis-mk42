@@ -1,5 +1,6 @@
 import io
 import time
+import logging
 
 import requests
 from chainlit import Image
@@ -19,30 +20,33 @@ async def imager_tool(query: str) -> str:
     :param query:
     :return: confirmation that the image was generated or error if any
     """
+    try:
+        from google import genai
+        from google.genai import types
+        client = genai.Client()
 
-    from google import genai
-    from google.genai import types
-    client = genai.Client()
+        generation_model = "imagen-3.0-generate-002"
 
-    generation_model = "imagen-3.0-generate-002"
+        image = client.models.generate_images(
+            model=generation_model,
+            prompt=query,
+            config=types.GenerateImagesConfig(
+                number_of_images=1,
+                aspect_ratio="4:3",
+            ),
+        )
 
-    image = client.models.generate_images(
-        model=generation_model,
-        prompt=query,
-        config=types.GenerateImagesConfig(
-            number_of_images=1,
-            aspect_ratio="4:3",
-        ),
-    )
+        img_data = image.generated_images[0].image.image_bytes
 
-    img_data = image.generated_images[0].image.image_bytes
+        await cl.Message(
+            content=query,
+            elements=[cl.Image(name="img", content=img_data)]
+        ).send()
 
-    await cl.Message(
-        content=query,
-        elements=[cl.Image(name="img", content=img_data)]
-    ).send()
-
-    return "The image generated has been sent to the user"
+        return "The image generated has been sent to the user"
+    except Exception as e:
+        logging.error(f"Error in imager_tool: {e}")
+        return f"Error generating image: {e}"
 
 
 @tool
@@ -52,41 +56,43 @@ async def video_tool(query: str) -> str:
     :param query:
     :return: confirmation that the video was generated or error if any
     """
+    try:
+        from google import genai
+        from google.genai import types
+        client = genai.Client(project="gen-lang-client-0911926804")
 
-    from google import genai
-    from google.genai import types
-    client = genai.Client(project="gen-lang-client-0911926804")
+        generation_model = "veo-2.0-generate-001"
 
-    generation_model = "veo-2.0-generate-001"
+        operation = client.models.generate_videos(
+            model=generation_model,
+            prompt=query,
+            config=types.GenerateVideosConfig(
+                number_of_videos=1,
+                duration_seconds=5,
+                aspect_ratio="16:9"
+            ),
+        )
 
-    operation = client.models.generate_videos(
-        model=generation_model,
-        prompt=query,
-        config=types.GenerateVideosConfig(
-            number_of_videos=1,
-            duration_seconds=5,
-            aspect_ratio="16:9"
-        ),
-    )
+        while not operation.done:
+            time.sleep(5)
+            operation = client.operations.get(operation)
+            print(operation)
 
-    while not operation.done:
-        time.sleep(5)
-        operation = client.operations.get(operation)
-        print(operation)
+        if operation.response.generated_videos[0].video.video_bytes is not None:
+            video_data = operation.response.generated_videos[0].video.video_bytes
+        else:
+            video_data = client.files.download(file=operation.response.generated_videos[0].video)
+            client.files.delete(name=operation.response.generated_videos[0].video.uri)
 
-    if operation.response.generated_videos[0].video.video_bytes is not None:
-        video_data = operation.response.generated_videos[0].video.video_bytes
-    else:
-        video_data = client.files.download(file=operation.response.generated_videos[0].video)
-        client.files.delete(name=operation.response.generated_videos[0].video.uri)
-        #video_data = requests.get(operation.response.generated_videos[0].video.uri, stream=True).content
+        await cl.Message(
+            content=query,
+            elements=[cl.Video(name="video", content=video_data)]
+        ).send()
 
-    await cl.Message(
-        content=query,
-        elements=[cl.Video(name="video", content=video_data)]
-    ).send()
-
-    return "The video generated has been sent to the user"
+        return "The video generated has been sent to the user"
+    except Exception as e:
+        logging.error(f"Error in video_tool: {e}")
+        return f"Error generating video: {e}"
 
 
 @tool
@@ -96,15 +102,18 @@ async def vocalizer_tool(query: str) -> str:
     :param query:
     :return: confirmation that the audio was generated or error if any
     """
+    try:
+        audio_data = get_audio_response(query)
 
-    audio_data = get_audio_response(query)
+        await cl.Message(
+            content=query,
+            elements=[cl.Audio(name="audio", content=audio_data)]
+        ).send()
 
-    await cl.Message(
-        content=query,
-        elements=[cl.Audio(name="audio", content=audio_data)]
-    ).send()
-
-    return "The audio generated has been sent to the user"
+        return "The audio generated has been sent to the user"
+    except Exception as e:
+        logging.error(f"Error in vocalizer_tool: {e}")
+        return f"Error generating audio: {e}"
 
 
 class BoundingBox(BaseModel):
@@ -159,7 +168,6 @@ async def plot_bounding_boxes(image_bytes: bytes, bounding_boxes: list[BoundingB
         im.save(img_data, format='PNG')
 
         return img_data
-        #await cl.Message(content="", elements=[cl.Image(name="img", content=img_data.getvalue())]).send()
 
 
 
@@ -191,8 +199,6 @@ async def imager_vision_tool(query: str) -> str:
             response_schema=list[BoundingBox]
         ),
     )
-
-    # return response.parsed
 
     cl_images = []
     for image in images:

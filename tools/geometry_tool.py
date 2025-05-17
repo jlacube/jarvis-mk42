@@ -8,6 +8,7 @@ from PIL import Image  # Ensure you have Pillow installed: pip install Pillow
 from langchain.chat_models import ChatOpenAI  # Or your preferred Chat model
 from langchain.prompts import ChatPromptTemplate
 from typing import Dict, Any
+import logging
 
 from models.models import get_google_model
 
@@ -43,7 +44,7 @@ def generate_geometry(description: str, visualization_backend: str = 'matplotlib
         intent = llm.invoke(intent_prompt).content.strip()
         print(f"LLM Intent: {intent}")
     except Exception as e:
-        print(f"Error during intent detection: {e}")
+        logging.error(f"Error during intent detection: {e}")
         return {'status': 'failure', 'message': f'Failed to detect intent: {e}', 'geometry_object': None, 'plot_data': None}
 
     # 2. Entity Extraction (LLM)
@@ -62,7 +63,7 @@ def generate_geometry(description: str, visualization_backend: str = 'matplotlib
         entities = json.loads(entities_json)
 
     except Exception as e:
-        print(f"Error during entity extraction: {e}")
+        logging.error(f"Error during entity extraction: {e}")
         return {'status': 'failure', 'message': f'Failed to extract entities: {e}', 'geometry_object': None, 'plot_data': None}
 
     # 3.  Basic Parsing based on LLM output (can be improved)
@@ -83,7 +84,7 @@ def generate_geometry(description: str, visualization_backend: str = 'matplotlib
         print(f"Parsed Info (Simulated): {parsed_info}")
         # --- End NLU Placeholder ---
     except Exception as e:
-        print(f"Error during parsing placeholder: {e}")
+        logging.error(f"Error during parsing placeholder: {e}")
         return {'status': 'failure', 'message': f'Failed to parse description: {e}', 'geometry_object': None, 'plot_data': None}
 
      # 4. Creating geometric objects (Shapely)
@@ -110,7 +111,7 @@ def generate_geometry(description: str, visualization_backend: str = 'matplotlib
             raise ValueError("Parsing step did not yield results.")
         # --- End Shapely Implementation ---
     except Exception as e:
-        print(f"Error during geometry creation: {e}")
+        logging.error(f"Error during geometry creation: {e}")
         return {'status': 'failure', 'message': f'Failed to create geometry object: {e}', 'geometry_object': None, 'plot_data': None}
 
     # 5. Generating a plot (matplotlib)
@@ -160,7 +161,7 @@ def generate_geometry(description: str, visualization_backend: str = 'matplotlib
              raise ValueError("Geometry object not created.")
         # --- End Matplotlib Implementation ---
     except Exception as e:
-        print(f"Error during plotting: {e}")
+        logging.error(f"Error during plotting: {e}")
         return {'status': 'warning', 'message': f'Geometry created, but failed to generate plot: {e}', 'geometry_object': geometry_object, 'plot_data': None}
 
     # 6. Return success
@@ -207,7 +208,7 @@ def geometry_tool(query: str) -> dict:
                 print("Chainlit message sent successfully.")
                 return {'status': 'success', 'message': 'Geometry plotted and sent as Chainlit message.'}
             except Exception as e:
-                print(f"Error sending Chainlit message: {e}")
+                logging.error(f"Error sending Chainlit message: {e}")
                 return {'status': 'failure', 'message': f'Failed to send Chainlit message: {e}'}
         else:
             cl.Message(content="Error: Plot data is not a BytesIO object.").send()

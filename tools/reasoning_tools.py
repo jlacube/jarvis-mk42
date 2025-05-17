@@ -276,3 +276,4 @@ async def clear_history(user_id: str, thread_id: str) -> dict:
 
     thought_history.clear()
     return {"status": "success", "message": "Thought history cleared"}
+

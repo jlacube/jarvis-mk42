@@ -1,6 +1,7 @@
 import io
 import os
 import wave
+import logging
 from typing import AsyncGenerator
 
 import requests
@@ -26,7 +27,7 @@ def pcm_to_wav_buffer(pcm_data: bytes) -> bytes:
         wav_buffer.seek(0)
         return wav_buffer.read()
     except Exception as e:
-        print(f"WAV buffer conversion failed: {e}")
+        logging.error(f"WAV buffer conversion failed: {e}")
         raise
 
 
@@ -56,3 +57,4 @@ def elevenlabs_tts(text: str) -> bytes:
         bytes_chunks.append(chunk)
 
     return b''.join(bytes_chunks)
+

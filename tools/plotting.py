@@ -1,4 +1,5 @@
 import io
+import logging
 from typing import Union
 
 import chainlit as cl
@@ -56,7 +57,7 @@ def generate_plot(data, plot_type='line', title='Data Visualization', x_label='X
         return plt
 
     except Exception as e:
-        print(f"Error generating plot: {e}")
+        logging.error(f"Error generating plot: {e}")
         return None
 
 
@@ -95,3 +96,4 @@ async def plot_tool(data:str, plot_type:str = 'line', title:str = 'Sample Line P
         return "ok"
     else:
         return "ko"
+

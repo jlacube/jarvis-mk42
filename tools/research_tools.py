@@ -1,4 +1,5 @@
 import os
+import logging
 
 import requests
 from chainlit import make_async, Video
@@ -141,6 +142,7 @@ async def standard_research_tool(query: str, max_results: int = 10) -> str:
             return "\n\n".join(formatted_results)
 
     except Exception as e:
+        logging.error(f"Error in standard_research_tool: {e}")
         return f"Search error: {str(e)}"
 
 
@@ -165,8 +167,12 @@ def perplexity_ai(query: str, max_results: int) -> str:
         ]
     }
 
-    response = requests.post("https://api.perplexity.ai/chat/completions", headers=headers, json=json).json()
-    return response['choices'][-1]['message']['content']
+    try:
+        response = requests.post("https://api.perplexity.ai/chat/completions", headers=headers, json=json).json()
+        return response['choices'][-1]['message']['content']
+    except Exception as e:
+        logging.error(f"Error in perplexity_ai: {e}")
+        return f"Perplexity AI error: {e}"
 
 
 async_perplexity_ai = make_async(perplexity_ai)
