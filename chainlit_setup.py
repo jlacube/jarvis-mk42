@@ -49,7 +49,7 @@ async def init_chainlit():
 async def on_chat_resume(thread: ThreadDict):
     """Resumes a previous chat session."""
     try:
-        previous_messages_raw = [m for m in thread["steps"] if m["type"] in ["user_message", "assistant_message"]]
+        previous_messages_raw = [m for m in thread["steps"][-50:] if m["type"] in ["user_message", "assistant_message"]]
 
         previous_messages: List[HumanMessage | AIMessage] = []
         for previous_message_raw in previous_messages_raw:

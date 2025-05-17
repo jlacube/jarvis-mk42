@@ -88,10 +88,12 @@ def load_markdown_file(file_path):
             content = f.read()
         return content
     except IOError as e:
-        print(f"Error reading file '{file_path}': {e}")
-        raise # Re-raise the exception after printing the message
+        # Using logger instead of print for consistency
+        logger.error(f"Error reading file '{file_path}': {e}")
+        raise # Re-raise the exception after logging
     except Exception as e:
-        print(f"An unexpected error occurred while reading '{file_path}': {e}")
+        # Using logger instead of print for consistency
+        logger.error(f"An unexpected error occurred while reading '{file_path}': {e}", exc_info=True)
         raise # Re-raise the exception
 
 
@@ -106,10 +108,15 @@ def extract_images_from_message(msg: cl.Message):
 
     for image_file in image_files:
         # Read the image
-        with open(image_file.path, "rb") as f:
-            image_file.content = f.read()
+        try:
+            with open(image_file.path, "rb") as f:
+                image_file.content = f.read()
+            images.append(image_file)
+        except FileNotFoundError:
+            logger.error(f"Image file not found at path: {image_file.path}")
+        except Exception as e:
+            logger.error(f"Error reading image file {image_file.path}: {e}", exc_info=True)
 
-        images.append(image_file)
 
     return images
 
@@ -125,10 +132,12 @@ async def on_message(message: cl.Message):
 
         app = cl.user_session.get("app")
         if not app:
+            logger.warning("Agent not initialized in user session. Attempting re-initialization.")
             await cl.Message(content="The agent is not initialized. Please start a new chat.").send()
             await init_chainlit()  # Attempt to re-initialize if it's not there.
             app = cl.user_session.get("app")  # Get the app again after re-initialization
             if not app:
+                logger.error("Failed to initialize agent even after re-attempt. Aborting message processing.")
                 return  # If still not initialized, exit.
 
         user_id = cl.user_session.get("user_id")
@@ -138,18 +147,22 @@ async def on_message(message: cl.Message):
         previous_messages = cl.user_session.get("previous_messages")
         from_audio = message.metadata.get("from_audio", False) if message.metadata else False
 
-        #langgraph_md = load_markdown_file("contexts/langgraph.md")
+        #langgraph_md = load_markdown_file("contexts/langgraph.md") # Consider adding error handling if needed
 
         # Prepare inputs for the agent, including previous messages if they exist
         current_input = HumanMessage(content=message.content)
+        logger.info(f"Processing message from user {user_name} (ID: {user_id}): {message.content[:100]}...") # Log message processing start
+
         if previous_messages is None:
             inputs = {"messages": [current_input]}
             # Initialize previous_messages for the session
             cl.user_session.set("previous_messages", [current_input])
+            logger.debug(f"Initialized previous_messages for session {session_id}")
         else:
             inputs = {"messages": previous_messages + [current_input]}
             # Update previous_messages for the session
             cl.user_session.set("previous_messages", previous_messages + [current_input])
+            logger.debug(f"Appended current message to previous_messages for session {session_id}")
 
 
         runnable_config = RunnableConfig(callbacks=[
@@ -158,17 +171,23 @@ async def on_message(message: cl.Message):
             ),
             ConsoleCallbackHandler()], configurable=dict([("thread_id", thread_id)]), recursion_limit=RECURSION_LIMIT)
 
+        logger.info(f"Invoking agent for thread_id: {thread_id}")
         res = await app.ainvoke(inputs, config=runnable_config)
+        logger.info(f"Agent invocation completed for thread_id: {thread_id}")
+
 
         # Store the AI response in the session history as well
         if isinstance(res, AddableValuesDict) and "messages" in res:
-             ai_response_message = res["messages"][-1]
+             ai_response_message = res["messages"][-1] # Assuming the last message is the AI response
              updated_messages = cl.user_session.get("previous_messages")
              if updated_messages:
                  cl.user_session.set("previous_messages", updated_messages + [ai_response_message])
+                 logger.debug(f"Appended AI response to previous_messages for session {session_id}")
+
 
         await process_standard_output(res, from_audio=from_audio)
 
     except Exception as e:
+        logger.error(f"Error processing message: {e}", exc_info=True) # Log the full error with traceback
         error_message = handle_error("Error processing message", e)
         await cl.Message(content=error_message).send()

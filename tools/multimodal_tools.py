@@ -155,6 +155,7 @@ async def plot_bounding_boxes(image_bytes: bytes, bounding_boxes: list[BoundingB
                 draw.text((abs_x1 + 8, abs_y1 + 6), bbox.label, fill=color, font=font)
 
         img_data = io.BytesIO()
+
         im.save(img_data, format='PNG')
 
         return img_data
@@ -198,8 +199,7 @@ async def imager_vision_tool(query: str) -> str:
         img_data:io.BytesIO = await plot_bounding_boxes(image_bytes=image.content, bounding_boxes=response.parsed)
         cl_images.append(cl.Image(name="img", content=img_data.getvalue()))
 
-    #await cl.Message(content=response.text, elements=cl_images).send()
-    await cl.Message(content=response.text).send()
+    await cl.Message(content=str(response.parsed), elements=cl_images).send()
 
-    return response.text
+    return "The processing was done successully and the response was send to the user"
 

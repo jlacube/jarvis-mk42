@@ -26,3 +26,4 @@ chardet~=5.2.0
 sympy~=1.13.3
 numpy~=2.2.4
 scipy~=1.15.2
+shapely~=2.1.0

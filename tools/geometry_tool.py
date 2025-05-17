@@ -5,18 +5,26 @@ from matplotlib.patches import Polygon as mplPolygon, Circle as mplCircle
 import io
 import chainlit as cl
 from PIL import Image  # Ensure you have Pillow installed: pip install Pillow
+from langchain.chat_models import ChatOpenAI  # Or your preferred Chat model
+from langchain.prompts import ChatPromptTemplate
+from typing import Dict, Any
 
-def generate_geometry(description: str, visualization_backend: str = 'matplotlib') -> dict:
+from models.models import get_google_model
+
+# Initialize LLM (replace with your actual model and API key)
+llm = get_google_model(streaming=False)
+
+def generate_geometry(description: str, visualization_backend: str = 'matplotlib') -> Dict[str, Any]:
     """
     Generates geometric objects using Shapely and visualizes them with Matplotlib,
-    returning the plot as a BytesIO object.
+    leveraging LLMs for NLU.
 
     Args:
         description (str): A textual description of the geometric figure.
         visualization_backend (str): 'matplotlib' or 'plotly'. Specifies the visualization library.
 
     Returns:
-        dict: A dictionary containing the status, message, Shapely geometry object, and plot data as an io.BytesIO object.
+        Dict[str, Any]: A dictionary containing the status, message, Shapely geometry object, and plot data as an io.BytesIO object.
     """
     print(f"Received description: {description}")
     print(f"Visualization backend: {visualization_backend}")
@@ -24,19 +32,51 @@ def generate_geometry(description: str, visualization_backend: str = 'matplotlib
     if visualization_backend not in ['matplotlib', 'plotly']:
         return {'status': 'failure', 'message': f'Invalid visualization backend: {visualization_backend}. Must be "matplotlib" or "plotly".', 'geometry_object': None, 'plot_data': None}
 
-    # 1. Placeholder for Parsing the description (NLU)
-    parsed_info = None
+    # 1. Intent Detection (LLM)
     try:
-        # --- NLU Implementation Placeholder ---
-        print("Step 1: Parsing description (Placeholder)...")
+        intent_prompt_template = ChatPromptTemplate.from_template(
+            "Classify the intent of the following user input: '{user_input}'. "
+            "Possible intents: draw, modify, calculate, query. "
+            "Return ONLY the intent name."
+        )
+        intent_prompt = intent_prompt_template.format_messages(user_input=description)
+        intent = llm.invoke(intent_prompt).content.strip()
+        print(f"LLM Intent: {intent}")
+    except Exception as e:
+        print(f"Error during intent detection: {e}")
+        return {'status': 'failure', 'message': f'Failed to detect intent: {e}', 'geometry_object': None, 'plot_data': None}
+
+    # 2. Entity Extraction (LLM)
+    try:
+        entity_prompt_template = ChatPromptTemplate.from_template(
+            "Extract the key entities from the following geometric description: '{user_input}'. "
+            "Entities to extract: shape, dimensions, position, relationship, equation. "
+            "Return a JSON object with the extracted entities."
+        )
+        entity_prompt = entity_prompt_template.format_messages(user_input=description)
+        entities_json = llm.invoke(entity_prompt).content.strip()
+        print(f"LLM Entities JSON: {entities_json}")
+
+        # Parse the JSON (you'll need to handle potential JSON parsing errors)
+        import json
+        entities = json.loads(entities_json)
+
+    except Exception as e:
+        print(f"Error during entity extraction: {e}")
+        return {'status': 'failure', 'message': f'Failed to extract entities: {e}', 'geometry_object': None, 'plot_data': None}
+
+    # 3.  Basic Parsing based on LLM output (can be improved)
+    parsed_info = {}
+    try:
+        print("Step 1: Parsing description (LLM-assisted)...")
         # Simulate extracting some basic info based on keywords - THIS IS NOT REAL NLU
-        if "point" in description.lower():
+        if "shape" in entities and entities["shape"] == "point":
             parsed_info = {'type': 'point', 'coords': [(0, 0)]} # Dummy data
-        elif "line" in description.lower():
+        elif "shape" in entities and entities["shape"] == "line":
             parsed_info = {'type': 'line', 'coords': [(0, 0), (1, 1)]} # Dummy data
-        elif "polygon" in description.lower():
+        elif "shape" in entities and entities["shape"] == "polygon":
              parsed_info = {'type': 'polygon', 'coords': [(0, 0), (1, 0), (1, 1), (0,1)]} # Dummy data
-        elif "circle" in description.lower():
+        elif "shape" in entities and entities["shape"] == "circle":
              parsed_info = {'type': 'circle', 'center': (0,0), 'radius': 1} # Dummy data
         else:
              raise ValueError("Could not determine figure type from description.")
@@ -46,7 +86,7 @@ def generate_geometry(description: str, visualization_backend: str = 'matplotlib
         print(f"Error during parsing placeholder: {e}")
         return {'status': 'failure', 'message': f'Failed to parse description: {e}', 'geometry_object': None, 'plot_data': None}
 
-     # 2. Creating geometric objects (Shapely)
+     # 4. Creating geometric objects (Shapely)
     geometry_object = None
     try:
         # --- Shapely Implementation ---
@@ -73,7 +113,7 @@ def generate_geometry(description: str, visualization_backend: str = 'matplotlib
         print(f"Error during geometry creation: {e}")
         return {'status': 'failure', 'message': f'Failed to create geometry object: {e}', 'geometry_object': None, 'plot_data': None}
 
-    # 3. Generating a plot (matplotlib)
+    # 5. Generating a plot (matplotlib)
     plot_data = None
     try:
         # --- Matplotlib Implementation ---
@@ -123,7 +163,7 @@ def generate_geometry(description: str, visualization_backend: str = 'matplotlib
         print(f"Error during plotting: {e}")
         return {'status': 'warning', 'message': f'Geometry created, but failed to generate plot: {e}', 'geometry_object': geometry_object, 'plot_data': None}
 
-    # 4. Return success
+    # 6. Return success
     print("Processing complete.")
     return {
         'status': 'success',
