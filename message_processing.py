@@ -55,14 +55,13 @@ async def process_standard_output(res: Any, from_audio: bool = False):
                 audio_elt.auto_play = True
                 msg.elements += [audio_elt]
                 await msg.update()
-                # await cl.Message(content="", elements=[]).send()
             except Exception as e:
-                error_message = handle_error("Error generating audio response", e)
-                await cl.Message(content=error_message).send()
+                logger.error("Error generating audio response: %s", str(e))
+                raise
 
     except Exception as e:
-        error_message = handle_error("Error processing standard output", e)
-        await cl.Message(content=error_message).send()
+        logger.error("Error processing standard output: %s", str(e))
+        raise
 
 
 def load_markdown_file(file_path):
@@ -190,4 +189,5 @@ async def on_message(message: cl.Message):
     except Exception as e:
         logger.error(f"Error processing message: {e}", exc_info=True) # Log the full error with traceback
         error_message = handle_error("Error processing message", e)
-        await cl.Message(content=error_message).send()
+        raise
+

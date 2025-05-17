@@ -208,13 +208,13 @@ def geometry_tool(query: str) -> dict:
                 print("Chainlit message sent successfully.")
                 return {'status': 'success', 'message': 'Geometry plotted and sent as Chainlit message.'}
             except Exception as e:
-                logging.error(f"Error sending Chainlit message: {e}")
-                return {'status': 'failure', 'message': f'Failed to send Chainlit message: {e}'}
+                logging.error(f"Error creating image: {e}")
+                return {'status': 'failure', 'message': f'Failed to create image: {e}'}
         else:
-            cl.Message(content="Error: Plot data is not a BytesIO object.").send()
+            logging.error("Plot data is not a BytesIO object")
             return {'status': 'failure', 'message': 'Plot data is not a BytesIO object.'}
     else:
-        cl.Message(content=f"Error: {result['message']}").send()
+        logging.error(f"Plot generation failed: {result['message']}")
         return {'status': 'failure', 'message': result['message']}
 
 # Example Usage (for testing the structure)
