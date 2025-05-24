@@ -36,6 +36,26 @@ except Exception as e:
 # This file only serves as the entry point
 
 if __name__ == "__main__":
+    """
+    Main entry point for the Jarvis application.
+    
+    This script:
+    1. Configures comprehensive logging for the application
+    2. Launches the Chainlit application with appropriate error handling
+    3. Ensures clean exit with proper status codes on errors
+    
+    The actual application logic is organized in separate modules:
+    - chainlit_setup.py: Handles session initialization and management
+    - audio_processing.py: Processes audio input/output
+    - message_processing.py: Handles text message processing
+    - users.py: Manages user data and authentication
+    
+    Error Handling:
+    - Specific handling for import errors (missing dependencies)
+    - Generic exception handling for unhandled errors
+    - Proper logging of all errors with stack traces
+    - Appropriate exit codes for different error types
+    """
     logger.info("Starting Chainlit application...")
     try:
         # Run the Chainlit application

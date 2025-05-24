@@ -7,24 +7,36 @@ from langchain_core.tools import tool
 async def list_jarvis_files() -> list:
     """
     Lists all files in Jarvis directory and its subdirectories.
-
+    
+    This tool scans the base directory and returns all file paths, excluding hidden files 
+    and directories (those starting with a dot).
+    
     Returns:
-    list: A list of strings, where each string is the full path to a file.
-          Returns an empty list if the directory doesn't exist or is not a directory.
+        list: A list of strings, where each string is the full path to a file.
+              Returns an empty list if the directory doesn't exist or is not a directory.
+              
+    Example:
+        The output might look like: ["./app.py", "./tools/file_tools.py", ...]
     """
     return list_files_recursive(".")
 
 
-def list_files_recursive(directory:str ) -> list:
+def list_files_recursive(directory: str) -> list:
     """
     Lists all files in the given directory and its subdirectories.
-
+    
+    This helper function performs the actual recursive directory traversal,
+    filtering out hidden files and directories.
+    
     Args:
-    directory (str): The path to the directory to scan.
-
+        directory (str): The path to the directory to scan.
+        
     Returns:
-    list: A list of strings, where each string is the full path to a file.
-          Returns an empty list if the directory doesn't exist or is not a directory.
+        list: A list of strings, where each string is the full path to a file.
+              Returns an empty list if the directory doesn't exist or is not a directory.
+              
+    Note:
+        Directories starting with ".\." and files starting with "." are excluded from results.
     """
     file_paths = []  # Initialize an empty list to store file paths
     # Check if the provided path is a valid directory
@@ -53,13 +65,25 @@ def list_files_recursive(directory:str ) -> list:
 async def read_file_content(filepath: str) -> str | None:
     """
     Reads the content of a file and returns it as a string.
-
+    
+    This tool safely opens a file with UTF-8 encoding and returns its contents.
+    It includes comprehensive error handling for common file operations issues.
+    
     Args:
-    filepath (str): The full path to the file to read.
-
+        filepath (str): The full path to the file to read. Can be absolute or relative 
+                        to the current working directory.
+    
     Returns:
-    str: The content of the file as a single string.
-         Returns None if the file cannot be found or read.
+        str: The content of the file as a single string.
+        None: If the file cannot be found or read due to any error.
+    
+    Error Handling:
+        - FileNotFoundError: When the specified file does not exist
+        - IOError: For permission issues or other I/O related errors
+        - General exceptions: For any other unexpected errors
+        
+    Example:
+        content = await read_file_content("./prompts/supervisor.md")
     """
     try:
         # Open the file in read mode ('r') with UTF-8 encoding

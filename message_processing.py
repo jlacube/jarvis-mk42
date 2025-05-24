@@ -18,7 +18,27 @@ logger = logging.getLogger(__name__)
 
 
 async def process_standard_output(res: Any, from_audio: bool = False):
-    """Processes the standard output from the agent."""
+    """
+    Processes the standard output from the agent and sends it to the user.
+    
+    This function handles different types of output from the agent, including
+    streaming and non-streaming responses. It supports both text and structured data.
+    
+    Args:
+        res (Any): The response from the agent, which can be:
+                  - AddableValuesDict: Contains messages to be processed
+                  - Stream: Contains chunks to be processed incrementally
+        from_audio (bool, optional): Whether the original input was from audio.
+                                    Defaults to False.
+    
+    Implementation Details:
+        - For AddableValuesDict, the function extracts and formats the message content
+        - For streaming responses, it processes chunks incrementally
+        - Handles cases where message content might be a list or string
+        
+    Note:
+        This function is designed to work with Chainlit's messaging system.
+    """
     try:
         msg: cl.Message
         full_text_response = ""
@@ -97,6 +117,28 @@ def load_markdown_file(file_path):
 
 
 def extract_images_from_message(msg: cl.Message):
+    """
+    Extracts and processes image attachments from a Chainlit message.
+    
+    This function identifies any image files attached to a message, reads their
+    binary content, and prepares them for processing by the agent.
+    
+    Args:
+        msg (cl.Message): The message object potentially containing image attachments
+        
+    Returns:
+        list: A list of processed image objects with their content loaded,
+              ready for analysis or generation tasks
+              
+    Processing Details:
+        - Filters message elements to only include those with "image" in MIME type
+        - Reads each image file's binary content and attaches it to the file object
+        - Handles errors gracefully with appropriate logging
+        
+    Error Handling:
+        - FileNotFoundError: When an image file path is invalid
+        - General exceptions: For any other image processing errors
+    """
     images = []
 
     if msg.elements is None:
@@ -121,7 +163,38 @@ def extract_images_from_message(msg: cl.Message):
 
 @cl.on_message
 async def on_message(message: cl.Message):
-    """Handles incoming messages from the user."""
+    """
+    Processes incoming messages from users and generates appropriate responses.
+    
+    This Chainlit event handler function:
+    1. Extracts any images from the message
+    2. Retrieves or initializes the agent for response generation
+    3. Manages conversation history through session variables
+    4. Invokes the agent with appropriate configuration
+    5. Processes and sends the agent's response to the user
+    
+    Args:
+        message (cl.Message): The incoming message from the user, potentially
+                             containing text content and/or file attachments
+                             
+    Processing Flow:
+        1. Extract and process any images attached to the message
+        2. Verify agent initialization or re-initialize if needed
+        3. Retrieve user and session context from user_session
+        4. Create appropriate inputs for the agent including conversation history
+        5. Configure and invoke the agent with the user's message
+        6. Process the agent's response and send it back to the user
+        7. Update conversation history with both user message and agent response
+        
+    Error Handling:
+        - Catches and logs exceptions during message processing
+        - Attempts to re-initialize the agent if it's not available
+        - Generates user-friendly error messages for any failures
+        
+    Note:
+        This function supports both text-based and audio-based conversations
+        through the 'from_audio' metadata flag.
+    """
     try:
         images = extract_images_from_message(message)
         if images:

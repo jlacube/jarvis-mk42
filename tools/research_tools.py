@@ -18,13 +18,22 @@ perplexity_ai_key = SecretStr(os.getenv('PERPLEXITY_API_KEY'))
 async def google_search_tool(query: str, max_results: int = 10) -> dict:
     """
     Perform a Google search and return formatted results.
-
+    
+    This tool uses the GoogleSerperAPIWrapper to conduct a search and return
+    structured results containing titles, snippets, and links.
+    
     Args:
-        query (str): The search query
-        max_results (int, optional): Maximum number of results to return. Defaults to 5.
-
+        query (str): The search query string to submit to Google
+        max_results (int, optional): Maximum number of results to return. Defaults to 10.
+        
     Returns:
-        dict: Formatted search results
+        dict: Formatted search results containing:
+            - organic: List of web page results with title, snippet, and link
+            - knowledgeGraph: Information from Google's Knowledge Graph if available
+            - relatedSearches: List of related search queries
+            
+    Example:
+        results = await google_search_tool("artificial intelligence trends 2025")
     """
     google_search = GoogleSerperAPIWrapper()
     google_search.k = max_results
@@ -36,14 +45,32 @@ async def google_search_tool(query: str, max_results: int = 10) -> dict:
 @tool
 async def images_search_tool(query: str, max_results: int = 10) -> dict:
     """
-    Perform an Image search and return formatted results.
-
+    Perform an image search and return formatted results.
+    
+    This tool searches for images related to the query and returns a structured
+    response containing image URLs and metadata.
+    
     Args:
-        query (str): The search query
-        max_results (int, optional): Maximum number of results to return. Defaults to 5.
-
+        query (str): The search query describing the images to find
+        max_results (int, optional): Maximum number of image results to return. Defaults to 10.
+        
     Returns:
-        images: Images search results as a list of images
+        dict: Contains a list of image results with the following structure:
+            {
+                "images": [
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": "https://example.com/image.jpg"
+                        }
+                    },
+                    ...
+                ]
+            }
+            
+    Note:
+        This tool is useful for finding relevant images to display to the user.
+        The results can be processed to display the images in the chat interface.
     """
     google_search = GoogleSerperAPIWrapper()
     google_search.type = "images"
@@ -70,14 +97,35 @@ async def images_search_tool(query: str, max_results: int = 10) -> dict:
 @tool
 async def videos_search_tool(query: str, max_results: int = 10) -> dict:
     """
-    Perform an Video search and return formatted results.
-
+    Perform a video search and return formatted results.
+    
+    This tool searches for videos related to the query and returns both a structured
+    response and sends a message with video elements to the user interface.
+    
     Args:
-        query (str): The search query
-        max_results (int, optional): Maximum number of results to return. Defaults to 5.
-
+        query (str): The search query describing the videos to find
+        max_results (int, optional): Maximum number of video results to return. Defaults to 10.
+        
     Returns:
-        videos: Videos search results as a list of videos
+        dict: Contains a list of video results with the following structure:
+            {
+                "videos": [
+                    {
+                        "type": "video_url",
+                        "video_url": {
+                            "url": "https://example.com/video.mp4"
+                        }
+                    },
+                    ...
+                ]
+            }
+            
+    Side Effects:
+        - Creates a Chainlit message with video elements that will be displayed to the user
+        - Each video is presented as a clickable element in the chat interface
+        
+    Note:
+        This tool handles both finding and displaying videos to the user in one operation.
     """
     google_search = GoogleSerperAPIWrapper()
     google_search.type = "videos"

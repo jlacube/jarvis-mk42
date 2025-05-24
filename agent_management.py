@@ -22,7 +22,22 @@ TOOLS_PACKAGE = "tools"
 def get_allowed_tools_from_env(agent_name: str) -> list[str] | None:
     """
     Reads the allowed tool list from the .env file for a given agent.
-    Returns None if no tool list is specified or if the .env file is missing.
+    
+    This function checks for environment variables in the format "{AGENT_NAME}_ALLOWED_TOOLS"
+    and parses the comma-separated list of tool names.
+    
+    Args:
+        agent_name (str): The name of the agent to get allowed tools for
+                          (will be converted to uppercase for env var matching)
+                          
+    Returns:
+        list[str]: A list of allowed tool names if specified in environment
+        None: If no tool list is specified or if the .env file is missing
+        
+    Example:
+        If .env contains: RESEARCH_AGENT_ALLOWED_TOOLS=google_search_tool,webpage_research_tool
+        Then get_allowed_tools_from_env("Research_Agent") returns:
+        ["google_search_tool", "webpage_research_tool"]
     """
     tool_list_str = os.getenv(f"{agent_name.upper()}_ALLOWED_TOOLS")
     if tool_list_str:
@@ -32,7 +47,21 @@ def get_allowed_tools_from_env(agent_name: str) -> list[str] | None:
 def get_all_tools(allowed_tools: list[str], user_name: str) -> list[BaseTool]:
     """
     Dynamically discovers and loads tools from the 'tools' package.
-    If allowed_tools is specified, only those tools are loaded.
+    
+    This function scans the tools package and its modules, finding all tools
+    that are instances of BaseTool. It filters the tools based on the allowed_tools
+    list if provided, and applies user-specific restrictions.
+    
+    Args:
+        allowed_tools (list[str]): List of tool names to load. If None, all tools are loaded.
+        user_name (str): The username, used for authorization of restricted tools
+        
+    Returns:
+        list[BaseTool]: List of instantiated tool objects ready for use by an agent
+        
+    Note:
+        - Some tools may have user-specific restrictions (e.g., video_tool)
+        - The function logs information about loaded and excluded tools
     """
     tools = []
     try:
@@ -77,7 +106,24 @@ def get_all_tools(allowed_tools: list[str], user_name: str) -> list[BaseTool]:
 
 
 async def create_agent(prompt: str, user_name: str = "", agent_name: str = JARVIS_NAME) -> any:
-    """Creates the agent."""
+    """
+    Creates an agent with the specified prompt and tools.
+    
+    This function sets up a React agent with the appropriate model, tools, and prompt.
+    It uses a memory-based checkpointer to maintain state across interactions.
+    
+    Args:
+        prompt (str): The system prompt to use for the agent
+        user_name (str, optional): The username, used for tool access control. Defaults to "".
+        agent_name (str, optional): The name to assign to the agent. Defaults to JARVIS_NAME.
+        
+    Returns:
+        any: The created agent instance, or None if an error occurs
+        
+    Error Handling:
+        - Catches and logs all exceptions during agent creation
+        - Sends an error message to the user via Chainlit if an error occurs
+    """
     try:
         model = get_google_model()
         allowed_tools = get_allowed_tools_from_env(agent_name)
@@ -97,7 +143,26 @@ async def create_agent(prompt: str, user_name: str = "", agent_name: str = JARVI
 
 
 async def initialize_agent(now: datetime, user_id: str, session_id: str, user_name: str, thread_id: str):
-    """Initializes the agent."""
+    """
+    Initializes the agent with user-specific context.
+    
+    This function creates an agent with a personalized prompt that includes the current 
+    datetime, user information, and session context.
+    
+    Args:
+        now (datetime): The current datetime
+        user_id (str): The user's unique identifier
+        session_id (str): The current session identifier
+        user_name (str): The user's name
+        thread_id (str): The current conversation thread identifier
+        
+    Returns:
+        any: The initialized agent instance, or None if an error occurs
+        
+    Note:
+        - Imports SUPERVISOR_PROMPT_NAME inside the function to avoid circular dependencies
+        - Uses load_prompt to format the supervisor prompt with contextual information
+    """
     try:
         from config import SUPERVISOR_PROMPT_NAME  # Import here to avoid circular dependency
         prompt_kwargs = {

@@ -16,9 +16,30 @@ from audio_processing import get_audio_response
 @tool
 async def imager_tool(query: str) -> str:
     """
-    Use an MLLM to create an image based pn the prompt provided by the user as the query parameter
-    :param query:
-    :return: confirmation that the image was generated or error if any
+    Generate an image based on the provided text prompt using Google's Imagen model.
+    
+    This tool leverages Google's generative AI capabilities to create an image
+    based on the descriptive text in the query. The generated image is sent directly
+    to the user in the chat interface.
+    
+    Args:
+        query (str): A detailed text description of the image to generate.
+                    More specific and descriptive prompts tend to yield better results.
+    
+    Returns:
+        str: A confirmation message that the image was generated and sent to the user,
+             or an error message if the generation failed.
+    
+    Side Effects:
+        - Creates and sends a Chainlit message containing the generated image
+        - The message includes the original query as context
+    
+    Error Handling:
+        - Catches and logs any exceptions during image generation
+        - Returns a descriptive error message when generation fails
+    
+    Example:
+        result = await imager_tool("A futuristic city with flying cars and neon lights at sunset")
     """
     try:
         from google import genai
@@ -52,9 +73,33 @@ async def imager_tool(query: str) -> str:
 @tool
 async def video_tool(query: str) -> str:
     """
-    Use an MLLM to create a video based on the prompt provided by the user as the query parameter
-    :param query:
-    :return: confirmation that the video was generated or error if any
+    Generates a short video based on the provided text description.
+    
+    This tool uses Google's Veo generative AI model to create a short video (5 seconds)
+    that visualizes the content described in the query. The generated video is sent
+    directly to the user in the chat interface.
+    
+    Args:
+        query (str): A detailed text description of the video content to generate.
+                    More specific and descriptive prompts tend to yield better results.
+                    
+    Returns:
+        str: A confirmation message that the video was generated and sent to the user,
+             or an error message if the generation failed.
+             
+    Implementation Details:
+        - Uses Google's Veo model (veo-2.0-generate-001) for video generation
+        - Creates a 5-second video in 16:9 aspect ratio
+        - Polls the operation until completion
+        - Downloads the video data and sends it to the user
+        - Cleans up temporary files after processing
+        
+    Error Handling:
+        - Catches and logs any exceptions during video generation
+        - Returns a descriptive error message when generation fails
+        
+    Example:
+        result = await video_tool("A drone flying over a futuristic city at sunset")
     """
     try:
         from google import genai
@@ -98,9 +143,31 @@ async def video_tool(query: str) -> str:
 @tool
 async def vocalizer_tool(query: str) -> str:
     """
-    Use an MLLM to generate an audio file via TTS based on the prompt provided by the user as the query parameter
-    :param query:
-    :return: confirmation that the audio was generated or error if any
+    Converts text to speech and sends the resulting audio to the user.
+    
+    This tool uses ElevenLabs' text-to-speech technology to generate natural-sounding
+    speech from the provided text. The generated audio is sent directly to the user
+    in the chat interface.
+    
+    Args:
+        query (str): The text content to be converted to speech. This can be a sentence,
+                    paragraph, or longer text that should be vocalized.
+                    
+    Returns:
+        str: A confirmation message that the audio was generated and sent to the user,
+             or an error message if the generation failed.
+             
+    Implementation Details:
+        - Uses the get_audio_response function to generate audio data
+        - Creates a Chainlit message with the audio attached as an element
+        - The original text is included in the message for context
+        
+    Error Handling:
+        - Catches and logs any exceptions during audio generation
+        - Returns a descriptive error message when generation fails
+        
+    Example:
+        result = await vocalizer_tool("Hello, I'm Jarvis. How may I assist you today?")
     """
     try:
         audio_data = get_audio_response(query)
@@ -174,10 +241,31 @@ async def plot_bounding_boxes(image_bytes: bytes, bounding_boxes: list[BoundingB
 @tool
 async def imager_vision_tool(query: str) -> str:
     """
-    Use an MLLM to analyze image(s) based on the prompt provided by the user as the query parameter.
-    The images are handled directly by this tool, don't worry about them being missing as a parameter.
-    :param query: the analysis to perform
-    :return: result of the analysis
+    Analyzes images using Google's Gemini vision model and identifies objects with bounding boxes.
+    
+    This tool processes images from the user's session, performs object detection based on
+    the query, and returns annotated images with bounding boxes around detected objects.
+    
+    Args:
+        query (str): Instructions for the image analysis, such as "Identify all objects in this image"
+                    or "Find all people in this photo"
+                    
+    Returns:
+        str: A confirmation message that the analysis was completed and results sent to the user
+        
+    Implementation Details:
+        - Retrieves images from the user's session
+        - Uses Google's Gemini 2.0 Flash model for vision analysis
+        - Applies bounding box detection with labels
+        - Plots the bounding boxes on the original images
+        - Sends both the parsed response and annotated images back to the user
+        
+    Note:
+        The images are handled directly by this tool from the user session, so they don't
+        need to be passed as parameters to the function.
+        
+    Example:
+        result = await imager_vision_tool("Identify all objects in this image and label them")
     """
 
     from google import genai

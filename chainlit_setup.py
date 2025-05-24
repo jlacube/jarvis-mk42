@@ -15,7 +15,26 @@ logger = logging.getLogger(__name__)
 
 
 async def init_chainlit():
-    """Initializes the Chainlit session."""
+    """
+    Initializes the Chainlit session with user and thread information.
+    
+    This function:
+    1. Retrieves or creates session, user, and thread identifiers
+    2. Initializes the agent with contextual information
+    3. Stores session data for later use
+    
+    The initialization process sets up:
+    - Unique identifiers for the session, user, and thread
+    - Current timestamp for context awareness
+    - The agent instance with appropriate configurations
+    
+    All these components are stored in the user_session for access throughout 
+    the conversation lifecycle.
+    
+    Error Handling:
+    - Catches and logs any exceptions during initialization
+    - Sends a user-friendly error message if initialization fails
+    """
     try:
         session_id = str(uuid.uuid4()) if cl.context.session.id is None else cl.context.session.id
 
@@ -47,7 +66,26 @@ async def init_chainlit():
 
 @cl.on_chat_resume
 async def on_chat_resume(thread: ThreadDict):
-    """Resumes a previous chat session."""
+    """
+    Handles resumption of a previous chat session.
+    
+    This function:
+    1. Retrieves up to 50 most recent messages from the previous thread
+    2. Converts them to the appropriate message types (HumanMessage or AIMessage)
+    3. Stores them in the user session for context
+    4. Initializes a new Chainlit session with this historical context
+    
+    Args:
+        thread (ThreadDict): The thread dictionary containing previous conversation data
+        
+    Error Handling:
+        - Catches and logs any exceptions during chat resumption
+        - Sends a user-friendly error message if resumption fails
+        
+    Note:
+        This function ensures that the agent has access to conversation history
+        when a user resumes a previous session, maintaining continuity.
+    """
     try:
         previous_messages_raw = [m for m in thread["steps"][-50:] if m["type"] in ["user_message", "assistant_message"]]
 
@@ -72,5 +110,16 @@ async def on_chat_resume(thread: ThreadDict):
 
 @cl.on_chat_start
 async def start():
-    """Starts a new chat session."""
+    """
+    Initializes a new chat session when a user starts a conversation.
+    
+    This function is triggered when a user begins a new chat with the system.
+    It calls init_chainlit() to set up all necessary session parameters and
+    initialize the agent for the conversation.
+    
+    No previous context is loaded since this is a fresh conversation.
+    
+    Note:
+        This is the entry point for new conversations in the Chainlit interface.
+    """
     await init_chainlit()

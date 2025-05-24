@@ -64,14 +64,43 @@ def generate_plot(data, plot_type='line', title='Data Visualization', x_label='X
 @tool
 async def plot_tool(data:str, plot_type:str = 'line', title:str = 'Sample Line Plot', x_label:str = 'X Values', y_label:str = 'Y Values'):
     """
-    Call this tool for plot generation
-
-    :param data: Input data for plotting, Markdown table, dict or pd.DataFrame
-    :param plot_type: Type of plot (line, bar, scatter, histogram)
-    :param title: Plot title
-    :param x_label: X-axis label
-    :param y_label: Y-axis label
-    :return ok if the tool worked, ko otherwise
+    Generates and displays a data visualization plot based on the provided data.
+    
+    This tool creates various types of plots (line, bar, scatter, histogram) from
+    structured data and sends the visualization to the user in the chat interface.
+    
+    Args:
+        data (str): Input data for plotting in the form of a Markdown table, 
+                   dictionary, or pandas DataFrame string representation.
+                   The data should have at least two columns for X and Y values.
+        plot_type (str, optional): Type of plot to generate. Options include:
+                                   'line', 'bar', 'scatter', 'histogram'.
+                                   Defaults to 'line'.
+        title (str, optional): Title to display on the plot.
+                              Defaults to 'Sample Line Plot'.
+        x_label (str, optional): Label for the X-axis.
+                                Defaults to 'X Values'.
+        y_label (str, optional): Label for the Y-axis.
+                                Defaults to 'Y Values'.
+                                
+    Returns:
+        str: "ok" if the plot was successfully generated and sent,
+             "ko" if there was an error in plot generation.
+             
+    Implementation Details:
+        - Uses matplotlib and seaborn for plot generation
+        - Converts input data to the appropriate format
+        - Generates the plot with specified parameters
+        - Sends the plot as an image to the chat interface
+        
+    Example:
+        result = await plot_tool(
+            data="| Month | Sales |\n|-------|-------|\n| Jan | 100 |\n| Feb | 150 |\n| Mar | 200 |",
+            plot_type="bar",
+            title="Quarterly Sales",
+            x_label="Month",
+            y_label="Sales ($)"
+        )
     """
 
     plot = generate_plot(
