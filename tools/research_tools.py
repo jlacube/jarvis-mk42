@@ -238,10 +238,11 @@ def get_research_tools() -> list:
     """
     Returns a list of available research tool functions.
 
-    Includes standard search, advanced research, and a tool to fetch webpage content.
+    Includes advanced research, Google search, image search, and a tool to fetch webpage content.
+    Note: standard_research_tool is temporarily disabled due to DuckDuckGo rate limiting issues.
     """
     tools = [
-        standard_research_tool,
+        # standard_research_tool,  # Temporarily disabled due to DuckDuckGo rate limiting issues
         advanced_research_tool,
         google_search_tool,
         images_search_tool,

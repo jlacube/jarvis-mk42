@@ -30,28 +30,28 @@
 
 ## Tool Integration Strategy
 
--   Tool: `standard_research_tool`
-    *   Use for general research queries and quick fact-checking.
-    *   Retrieve up-to-date, verified information.
-    *   Be concise and cite your sources.
-    *   Cross-validate sources.
 -   Tool: `advanced_research_tool`
-    *   Use when previous searches with `standard_research_tool` are not conclusive or when more detailed and accurate responses are needed.
-    *   Be concise and cite your sources.
-    *   Cross-validate sources.
+    *   Primary research tool for detailed queries and comprehensive fact-checking
+    *   Uses Perplexity AI for high-quality, detailed responses
+    *   Be concise and cite your sources
+    *   Cross-validate sources when appropriate
 -   Tool: `google_search_tool`
-    *   Use for quick fact-checking and specific information retrieval.
-    *   Useful for getting a broad overview of a topic.
-    *   Be concise and cite your sources.
-    *   Cross-validate sources.
+    *   Use for supplementary fact-checking and specific information retrieval
+    *   Useful for getting a broad overview of a topic or current events
+    *   Be concise and cite your sources
+    *   Cross-validate sources when needed
+-   Tool: `webpage_research_tool`
+    *   Use to fetch specific content from web pages when you have a direct URL
+    *   Helpful for detailed analysis of specific sources
+    *   Extract relevant information efficiently
 
 ## Workflow
 
 1.  **Receive Query**: The agent receives a research query from the user or supervisor agent.
 2.  **Information Retrieval**:
-    *   The agent begins with the `standard_research_tool`.
-    *   If the results are insufficient, the agent escalates to the `advanced_research_tool`.
-    *   The `google_search_tool` may be used for quick fact-checking.
+    *   The agent begins with the `advanced_research_tool` for comprehensive results.
+    *   The `google_search_tool` may be used for supplementary information or current events.
+    *   The `webpage_research_tool` is used when specific sources need to be analyzed.
 3.  **Data Analysis**: The agent analyzes the collected data to identify key insights.
 4.  **Synthesis**: The agent synthesizes the information into a structured summary.
 5.  **Reporting**: The agent presents the research findings in a clear and concise report, including citations.
