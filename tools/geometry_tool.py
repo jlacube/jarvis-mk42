@@ -5,7 +5,7 @@ from matplotlib.patches import Polygon as mplPolygon, Circle as mplCircle
 import io
 import chainlit as cl
 from PIL import Image  # Ensure you have Pillow installed: pip install Pillow
-from langchain.chat_models import ChatOpenAI  # Or your preferred Chat model
+from langchain_openai import ChatOpenAI  # Or your preferred Chat model
 from langchain.prompts import ChatPromptTemplate
 from typing import Dict, Any
 import logging
