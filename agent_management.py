@@ -84,6 +84,9 @@ def get_all_tools(allowed_tools: list[str], user_name: str) -> list[BaseTool]:
 
                     if isinstance(obj, BaseTool):
                         if allowed_tools is None or name in allowed_tools:
+                            if obj.name == 'standard_search_tool':
+                                continue # Skip standard_search_tool as it's not working due to DuckDuckGo Rate Limit
+
                             if obj.name == 'video_tool':
                                 if user_name == 'jerome':
                                     tools.append(obj)
