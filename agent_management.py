@@ -65,6 +65,13 @@ def get_all_tools(allowed_tools: list[str], user_name: str) -> list[BaseTool]:
     """
     tools = []
     try:
+        # Try to add the current directory to sys.path if it's not already there
+        import sys
+        import os
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        if current_dir not in sys.path:
+            sys.path.insert(0, current_dir)
+            
         package = importlib.import_module(TOOLS_PACKAGE)
 
         for _, module_name, is_pkg in pkgutil.walk_packages(package.__path__, package.__name__ + "."):

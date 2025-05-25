@@ -35,6 +35,10 @@ cd "$PROJECT_DIR"
 # Activate virtual environment
 source .venv/bin/activate
 
+# Add the current directory to PYTHONPATH
+export PYTHONPATH=$PROJECT_DIR:$PYTHONPATH
+echo "Setting PYTHONPATH to include $PROJECT_DIR"
+
 # Set SSL environment variables
 export CHAINLIT_SSL_KEY=/home/n8n/omni-corp_key.key
 export CHAINLIT_SSL_CERT=/home/n8n/omni-corp_cert_full.cer

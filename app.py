@@ -1,5 +1,11 @@
 import logging
+import os
 import sys  # Import sys for sys.exit on fatal error
+
+# Add the project root directory to the Python path
+current_dir = os.path.dirname(os.path.abspath(__file__))
+if current_dir not in sys.path:
+    sys.path.insert(0, current_dir)
 
 import chainlit as cl
 from chainlit.cli import run_chainlit
