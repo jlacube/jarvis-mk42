@@ -31,12 +31,16 @@ def pcm_to_wav_buffer(pcm_data: bytes) -> bytes:
         raise
 
 
-async def elevenlabs_stt(file: io.BytesIO) -> str:
+async def elevenlabs_stt(file: io.BytesIO, language: str = None) -> str:
     headers = {
         'xi-api-key': f'{elevenlabs_key.get_secret_value()}'
     }
 
-    form_data = { "model_id" : "scribe_v1", "language": "en" }
+    # Use auto-detect if no language is specified, otherwise use provided language
+    form_data = { 
+        "model_id": "scribe_v1",
+        "language": "auto" if language is None else language
+    }
 
     files = { "file": file }
 
@@ -44,7 +48,18 @@ async def elevenlabs_stt(file: io.BytesIO) -> str:
     return response['text']
 
 
-def elevenlabs_tts(text: str) -> bytes:
+def elevenlabs_tts(text: str, language: str = None) -> bytes:
+    """
+    Converts text to speech using the ElevenLabs API.
+    
+    Args:
+        text (str): The text to convert to speech
+        language (str, optional): ISO language code (e.g., 'fr', 'es', 'de'). 
+                                 If None, auto-detection will be used.
+    
+    Returns:
+        bytes: Audio data in bytes
+    """
     response = client.text_to_speech.convert(
         voice_id="JBFqnCBsd6RMkjVDRZzb",
         output_format="mp3_44100_128",

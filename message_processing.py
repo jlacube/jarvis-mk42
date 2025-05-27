@@ -2,6 +2,7 @@
 import logging
 import os
 from typing import Any
+from datetime import datetime
 
 from langchain_core.messages import HumanMessage, AIMessageChunk, SystemMessage
 from langchain_core.runnables import RunnableConfig
@@ -10,9 +11,15 @@ from langgraph.pregel.io import AddableValuesDict
 import chainlit as cl
 
 from config import RECURSION_LIMIT, MPV_INSTALLED
+# Import for language detection
+try:
+    from langdetect import detect
+except ImportError:
+    logging.warning("langdetect not installed. Language detection will not work.")
+    detect = None
 # Assuming extract_images_from_message is in utils.py
 # If it's elsewhere, adjust the import accordingly.
-from utils import handle_error#, extract_images_from_message
+from utils import handle_error
 
 logger = logging.getLogger(__name__)
 
@@ -71,6 +78,8 @@ async def process_standard_output(res: Any, from_audio: bool = False):
         if from_audio:
             try:
                 from audio_processing import get_audio_response
+                # Get the user's language for consistent TTS
+                user_language = cl.user_session.get("user_language")
                 audio_elt = cl.Audio(content=get_audio_response(full_text_response))
                 audio_elt.auto_play = True
                 msg.elements += [audio_elt]
@@ -219,7 +228,16 @@ async def on_message(message: cl.Message):
         previous_messages = cl.user_session.get("previous_messages")
         from_audio = message.metadata.get("from_audio", False) if message.metadata else False
 
-        #langgraph_md = load_markdown_file("contexts/langgraph.md") # Consider adding error handling if needed
+        # Detect language from the message if not already set in session
+        if not cl.user_session.get("user_language") and len(message.content.strip()) > 0:
+            try:
+                if detect:
+                    detected_language = detect(message.content)
+                    if len(message.content.split()) > 3:  # Only detect if we have enough words
+                        cl.user_session.set("user_language", detected_language)
+                        logger.info(f"Detected language from text input: {detected_language}")
+            except Exception as e:
+                logger.warning(f"Language detection failed: {e}")
 
         # Prepare inputs for the agent, including previous messages if they exist
         current_input = HumanMessage(content=message.content)

@@ -13,6 +13,13 @@ from message_processing import process_standard_output
 #from message_processing import on_message
 from utils import handle_error
 
+# Import for language detection
+try:
+    from langdetect import detect
+except ImportError:
+    logging.warning("langdetect not installed. Language detection will not work.")
+    detect = None
+
 logger = logging.getLogger(__name__)
 
 
@@ -48,10 +55,25 @@ async def on_audio_end():
         wav_buffer = pcm_to_wav_buffer(b"".join(chunks))
         audio_file = io.BytesIO(wav_buffer)
         audio_file.name = 'audio.wav'
+        
+        # Get user's language if it exists in session
+        user_language = cl.user_session.get("user_language", None)
+        
+        # Transcribe with auto-detection or user's language if known
+        response = await elevenlabs_stt(audio_file, language=user_language)
 
-        response = await elevenlabs_stt(audio_file)
-
+        # Store the transcription and flag it as coming from audio
         await cl.Message(content=response, type="user_message").send()
+        
+        # Save the transcription language for future response
+        try:
+            # Only update user_language if we don't have one yet or if confident in detection
+            if user_language is None and len(response.split()) > 3:  # Only detect if we have enough words
+                cl.user_session.set("user_language", detect(response))
+                logger.info(f"Detected language from audio input: {detect(response)}")
+        except Exception as e:
+            logger.warning(f"Language detection failed: {e}")
+            
         from message_processing import on_message
         await on_message(cl.Message(content=response, metadata={"from_audio": True}))
 
@@ -64,7 +86,10 @@ async def on_audio_end():
 def get_audio_response(text: str) -> bytes:
     """Gets the audio response as bytes."""
     try:
-        return elevenlabs_tts(text)  # Assuming elevenlabs_tts returns bytes
+        # Get the user's language from the session if available
+        user_language = cl.user_session.get("user_language", None)
+        
+        return elevenlabs_tts(text, language=user_language)
     except Exception as e:
         error_message = handle_error("Error getting audio response", e)
         logger.error(error_message)
