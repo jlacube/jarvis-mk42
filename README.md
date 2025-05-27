@@ -2,7 +2,7 @@
 
 ## Overview
 
-Jarvis is an AI assistant created by Jerome Lacube, inspired by the JARVIS character from the Marvel Cinematic Universe. It aims to provide users with intelligent, empathetic, and strategic assistance.
+Jarvis is an AI assistant inspired by the JARVIS character from the Marvel Cinematic Universe. It aims to provide users with intelligent, empathetic, and strategic assistance.
 
 ## Core Features
 
@@ -100,26 +100,40 @@ We welcome contributions to Jarvis! Here's how you can contribute:
 
 We appreciate your contributions!
 
-## License
+## User Authentication & Password Management
 
-MIT License
+Jarvis supports user authentication and access control using environment variables and bcrypt password hashing.
 
-Copyright (c) 2025 Jerome Lacube
+### Allowed Users
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+- The list of allowed usernames is controlled by the `ALLOWED_USERS` environment variable (comma-separated, case-insensitive). Example:
+  ```env
+  ALLOWED_USERS=admin,alice,bob
+  ```
+- By default, only `admin` is allowed if not set.
+- To enforce the allowed users list, set `ENFORCE_USERS=True` (default is True).
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+### Password Management
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+- Passwords are not stored in plaintext. Instead, store a bcrypt hash for each user in an environment variable named after the username (lowercase).
+- Example for user `alice`:
+  1. Generate a bcrypt hash in Python:
+     ```python
+     import bcrypt
+     bcrypt.hashpw(b"your_password", bcrypt.gensalt()).decode()
+     ```
+  2. Set the hash as an environment variable:
+     ```env
+     alice=$2b$12$...your_bcrypt_hash...
+     ```
+- The admin password should be stored in an environment variable named `admin`.
+- On login, the system checks the username and verifies the password using bcrypt.
+
+### Example .env
+```env
+ALLOWED_USERS=admin,alice,bob
+ENFORCE_USERS=True
+admin=$2b$12$...admin_hash...
+alice=$2b$12$...alice_hash...
+bob=$2b$12$...bob_hash...
+```
