@@ -11,6 +11,46 @@ Jarvis is an AI assistant inspired by the JARVIS character from the Marvel Cinem
 *   **Tool-Based Architecture:** Leverages a variety of tools for research, coding, reasoning, and more.
 *   **Modular Design:** Utilizes distinct agents for specialized tasks.
 
+## Available Tools
+
+Jarvis provides a set of specialized tools, grouped by functional domain. Each tool is accessible via natural language or agent invocation.
+
+### Coding & Reasoning
+- **coding_tool**: Expert coding agent for software development, code generation, debugging, refactoring, and code explanation. Handles multi-turn conversations to clarify requirements and provides code in various languages.
+- **reasoning_tool**: For problem decomposition, strategic analysis, step-by-step logical reasoning, and inference. Useful for breaking down complex problems and planning solutions.
+- **sequential_thinking_tool**: Guides agents through multi-step, reflective problem-solving by tracking and revising thoughts, supporting branching and backtracking.
+- **generate_summary**: Produces a summary of a reasoning session or conversation, condensing key points and conclusions.
+- **clear_history**: Clears the reasoning or conversation history for a given user and thread, allowing a fresh start.
+- **reasoning_model_tool**: Advanced reasoning using specialized models for complex problem-solving and analysis.
+
+### Research
+- **research_tool**: Performs advanced web research using multiple sources to answer questions, summarize topics, or gather information.
+- **standard_research_tool**: General-purpose research using web search APIs for broad information gathering.
+- **google_search_tool**: Uses Google Search to retrieve relevant web results for a query.
+- **images_search_tool**: Searches for images on the web based on a query, returning relevant image URLs.
+- **videos_search_tool**: Searches for videos on the web based on a query, returning relevant video URLs.
+- **imager_vision_tool**: Analyzes images for object detection, labeling, and extracting visual information.
+
+### Math & Visualization
+- **calculator_tool**: Symbolic and numeric math tool supporting arithmetic, algebra, calculus, trigonometry, and equation solving. Uses SymPy for safe evaluation.
+- **plot_tool**: Generates visual plots (line, bar, scatter, etc.) from tabular or structured data. Returns images for easy visualization.
+- **geometry_tool**: Creates, analyzes, and visualizes geometric figures (points, lines, polygons, circles) from natural language descriptions, returning both geometry objects and plots.
+
+### File Management
+- **list_jarvis_files**: Lists files in the Jarvis workspace, helping agents and users locate available files for reading or writing.
+- **read_file_content**: Reads the content of a specified file, useful for code review, debugging, or documentation extraction.
+- **write_file_tool**: Writes or overwrites files in the workspace, supporting safe file operations with overwrite protection.
+
+### Multimodal (Image, Audio, Video)
+- **imager_tool**: Generates images from text prompts using AI image generation models.
+- **vocalizer_tool**: Converts text to speech, generating audio files from text responses.
+- **video_tool**: Generates or retrieves videos based on user queries or prompts.
+
+### Agent Management & Utility
+- **agents_tools**: Utilities for agent management, coordination, and invoking specialized agents (coding, reasoning, research).
+
+These tools are invoked by the agents as needed, and can also be extended or customized for new use cases.
+
 ## Project Structure
 
 The project is organized into several key modules:
