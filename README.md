@@ -96,12 +96,15 @@ The project is organized into several key modules:
 
 2.  **Configuration:**
 
-    *   **Environment Variables:**  Create a `.env` file in the project root.  Populate it with the necessary environment variables. Example:
-        ```
-        OPENAI_API_KEY=your_openai_api_key
-        GOOGLE_API_KEY=your_google_api_key
-        # ... other API keys and configurations
-        ```
+    *   **Environment Variables:**
+        - Copy the provided `.env.example` file to `.env`:
+          ```bash
+          cp .env.example .env  # On Linux/macOS
+          copy .env.example .env  # On Windows
+          ```
+        - Open `.env` and fill in your API keys and configuration values as needed.
+        - Example variables include:
+          - `OPENAI_API_KEY`, `GOOGLE_API_KEY`, `ALLOWED_USERS`, user password hashes, etc.
     *   **API Keys:** Obtain API keys from the respective services (e.g., OpenAI, Google Cloud) and add them to the `.env` file.
     *   **Tool Configuration:**  Some tools might require specific configuration. Refer to the tool's documentation for details.
 
