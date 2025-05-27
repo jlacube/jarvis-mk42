@@ -26,7 +26,7 @@ def list_files_recursive(directory: str) -> list:
     Lists all files in the given directory and its subdirectories.
     
     This helper function performs the actual recursive directory traversal,
-    filtering out hidden files and directories.
+    filtering out hidden files and directories, and excludes the .venv directory.
     
     Args:
         directory (str): The path to the directory to scan.
@@ -37,6 +37,7 @@ def list_files_recursive(directory: str) -> list:
               
     Note:
         Directories starting with ".\." and files starting with "." are excluded from results.
+        The .venv directory is also excluded at any depth.
     """
     file_paths = []  # Initialize an empty list to store file paths
     # Check if the provided path is a valid directory
@@ -44,19 +45,17 @@ def list_files_recursive(directory: str) -> list:
         print(f"Error: '{directory}' is not a valid directory.")
         return file_paths
 
-    # os.walk generates the file names in a directory tree
-    # by walking the tree either top-down or bottom-up.
-    for root, _, filenames in os.walk(directory):
-        if root.startswith(".\\."): # and root != ".":
+    for root, dirnames, filenames in os.walk(directory):
+        # Exclude .venv and hidden directories at any depth
+        dirnames[:] = [d for d in dirnames if not d.startswith('.') and d != '.venv']
+        if root.startswith(".\\."):
             continue
 
         for filename in filenames:
             if filename.startswith("."):
                 continue
-
-            # Construct the full file path by joining the root directory and filename
             filepath = os.path.join(root, filename)
-            file_paths.append(filepath) # Add the full file path to the list
+            file_paths.append(filepath)
 
     return file_paths
 
