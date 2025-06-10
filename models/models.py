@@ -24,9 +24,9 @@ def get_mistral_ai_model(streaming:bool = False, temperature:int = 0):
 
 def get_google_reasoning_model(streaming:bool = False, temperature:int = 0):
     return ChatGoogleGenerativeAI(
-        model="gemini-2.5-pro-latest",
+        model="gemini-2.5-pro-preview-06-05",
         temperature=temperature,
-        max_tokens=8192,
+        max_tokens=65536,
         disable_streaming=(not streaming)
     )
 
