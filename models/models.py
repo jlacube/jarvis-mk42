@@ -32,7 +32,7 @@ def get_google_reasoning_model(streaming:bool = False, temperature:int = 0):
 
 def get_google_model(streaming:bool = False, temperature:int = 0):
     return ChatGoogleGenerativeAI(
-        model="gemini-2.0-flash-latest",
+        model="gemini-2.0-flash",
         temperature=temperature,
         max_tokens=8192,
         disable_streaming=(not streaming)

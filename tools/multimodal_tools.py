@@ -46,7 +46,7 @@ async def imager_tool(query: str) -> str:
         from google.genai import types
         client = genai.Client()
 
-        generation_model = "imagen-4.0-generate-001"
+        generation_model = "imagen-4.0-generate-preview-05-20" #"imagen-4.0-generate-001"
 
         image = client.models.generate_images(
             model=generation_model,
@@ -106,7 +106,7 @@ async def video_tool(query: str) -> str:
         from google.genai import types
         client = genai.Client(project="gen-lang-client-0911926804")
 
-        generation_model = "veo-3.0-generate-001"
+        generation_model = "veo-3.0-generate-preview" #"veo-3.0-generate-001"
 
         operation = client.models.generate_videos(
             model=generation_model,
