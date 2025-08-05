@@ -847,6 +847,7 @@ class SemanticMemorySystem(MemorySystem):
         
         # Concept similarity
         concept_similarity = await self._calculate_concept_similarity(knowledge.concept, query.query_text)
+        concept_similarity = concept_similarity if concept_similarity is not None else 0.0
         relevance_factors.append(concept_similarity)
         
         # Content similarity
@@ -859,15 +860,17 @@ class SemanticMemorySystem(MemorySystem):
         relevance_factors.append(word_overlap)
         
         # Confidence factor
-        relevance_factors.append(knowledge.confidence * 0.5)
+        confidence = knowledge.confidence if knowledge.confidence is not None else 0.0
+        relevance_factors.append(confidence * 0.5)
         
         # Usage frequency (popular knowledge is more relevant)
-        usage_factor = min(1.0, knowledge.usage_count / 100)  # Normalize usage count
+        usage_count = knowledge.usage_count if knowledge.usage_count is not None else 0
+        usage_factor = min(1.0, usage_count / 100)  # Normalize usage count
         relevance_factors.append(usage_factor * 0.3)
         
         # Calculate weighted average
         weights = [0.4, 0.3, 0.2, 0.1]
-        relevance_score = sum(factor * weight for factor, weight in zip(relevance_factors, weights))
+        relevance_score = sum(factor * weight for factor, weight in zip(relevance_factors, weights) if factor is not None and weight is not None)
         
         return min(1.0, max(0.0, relevance_score))
     
