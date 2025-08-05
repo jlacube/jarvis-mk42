@@ -8,10 +8,11 @@ from langchain_core.messages import HumanMessage
 from langchain_core.runnables import RunnableConfig
 
 from audio.cl_audio import pcm_to_wav_buffer, elevenlabs_stt, elevenlabs_tts
-from config import RECURSION_LIMIT
+from config.settings import get_settings
 from message_processing import process_standard_output
-#from message_processing import on_message
-from utils import handle_error
+from utils.legacy import handle_error
+from utils.logging_config import get_logger
+from utils.exceptions import AudioProcessingError
 
 # Import for language detection
 try:
@@ -20,7 +21,7 @@ except ImportError:
     logging.warning("langdetect not installed. Language detection will not work.")
     detect = None
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 @cl.on_audio_start

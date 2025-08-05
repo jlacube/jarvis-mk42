@@ -7,6 +7,25 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 if current_dir not in sys.path:
     sys.path.insert(0, current_dir)
 
+# Initialize configuration and logging as early as possible
+try:
+    from config.settings import get_settings, validate_settings
+    from utils.logging_config import setup_logging
+    from models import init_database
+    
+    # Validate configuration
+    validate_settings()
+    
+    # Setup logging
+    setup_logging()
+    
+    # Initialize database
+    init_database()
+    
+except Exception as e:
+    print(f"Critical error during startup configuration: {e}")
+    sys.exit(1)
+
 import chainlit as cl
 from chainlit.cli import run_chainlit
 
@@ -19,23 +38,9 @@ from users import *
 import asyncpg
 import boto3
 
-# --- Improved logging configuration ---
-log_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__) # Create a specific logger for this module
-logger.setLevel(logging.INFO)
-
-# Handler for the console
-stream_handler = logging.StreamHandler()
-stream_handler.setFormatter(log_formatter)
-logger.addHandler(stream_handler)
-
-# Handler for a file (optional but recommended)
-try:
-    file_handler = logging.FileHandler("app.log") # Log file name
-    file_handler.setFormatter(log_formatter)
-    logger.addHandler(file_handler)
-except Exception as e:
-    logger.error(f"Failed to configure file logging: {e}")
+# Get logger after setup is complete
+from utils.logging_config import get_logger
+logger = get_logger(__name__)
 
 
 # --- Chainlit decorators are in their respective modules ---

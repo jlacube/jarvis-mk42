@@ -9,9 +9,11 @@ from langchain_core.messages import HumanMessage, AIMessage
 from typing import List, Optional
 
 from agent_management import initialize_agent
-from utils import handle_error
+from utils.legacy import handle_error
+from utils.logging_config import get_logger
+from utils.exceptions import SessionError
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 async def init_chainlit():

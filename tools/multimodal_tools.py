@@ -1,16 +1,46 @@
 import io
 import time
 import logging
+from typing import Optional, List
 
 import requests
-from chainlit import Image
+from chainlit import Image, Video, Audio
 from langchain_core.tools import tool
 from openai import OpenAI
+from pydantic import BaseModel, validator
 
 import chainlit as cl
-from pydantic import BaseModel
 
+from config.settings import get_settings
+from utils.exceptions import JarvisValidationError, JarvisAPIError, JarvisToolError
+from utils.logging_config import get_logger
 from audio_processing import get_audio_response
+
+# Initialize logger and settings
+logger = get_logger(__name__)
+settings = get_settings()
+
+# Security configurations
+MAX_PROMPT_LENGTH = 2000
+MAX_BOUNDING_BOXES = 25
+
+def validate_prompt(prompt: str) -> str:
+    """Validate and sanitize text prompts"""
+    if not prompt or not prompt.strip():
+        raise JarvisValidationError("Prompt cannot be empty")
+    
+    prompt = prompt.strip()
+    if len(prompt) > MAX_PROMPT_LENGTH:
+        raise JarvisValidationError(f"Prompt too long (max {MAX_PROMPT_LENGTH} characters)")
+    
+    # Basic content filtering
+    harmful_patterns = ['explicit', 'violent', 'illegal', 'offensive']
+    prompt_lower = prompt.lower()
+    for pattern in harmful_patterns:
+        if pattern in prompt_lower:
+            logger.warning(f"Potentially harmful content detected in prompt: {pattern}")
+    
+    return prompt
 
 
 @tool
@@ -34,18 +64,27 @@ async def imager_tool(query: str) -> str:
         - Creates and sends a Chainlit message containing the generated image
         - The message includes the original query as context
     
-    Error Handling:
-        - Catches and logs any exceptions during image generation
-        - Returns a descriptive error message when generation fails
+    Raises:
+        JarvisValidationError: If query is invalid
+        JarvisAPIError: If Google API fails
+        JarvisToolError: If image generation fails
     
     Example:
         result = await imager_tool("A futuristic city with flying cars and neon lights at sunset")
     """
     try:
+        # Validate prompt
+        query = validate_prompt(query)
+        
+        # Check API key
+        if not settings.google_api_key:
+            raise JarvisAPIError("GOOGLE_API_KEY not configured")
+        
+        logger.info(f"Generating image for prompt: {query[:50]}{'...' if len(query) > 50 else ''}")
+        
         from google import genai
         from google.genai import types
         client = genai.Client()
-
         generation_model = "imagen-3.0-generate-002"
 
         image = client.models.generate_images(
@@ -64,10 +103,16 @@ async def imager_tool(query: str) -> str:
             elements=[cl.Image(name="img", content=img_data)]
         ).send()
 
+        logger.info("Image generated and sent to user successfully")
         return "The image generated has been sent to the user"
+        
+    except JarvisValidationError:
+        raise
+    except JarvisAPIError:
+        raise
     except Exception as e:
-        logging.error(f"Error in imager_tool: {e}")
-        return f"Error generating image: {e}"
+        logger.error(f"Error in imager_tool: {e}")
+        raise JarvisToolError(f"Error generating image: {e}")
 
 
 @tool
@@ -94,18 +139,27 @@ async def video_tool(query: str) -> str:
         - Downloads the video data and sends it to the user
         - Cleans up temporary files after processing
         
-    Error Handling:
-        - Catches and logs any exceptions during video generation
-        - Returns a descriptive error message when generation fails
+    Raises:
+        JarvisValidationError: If query is invalid
+        JarvisAPIError: If Google API fails
+        JarvisToolError: If video generation fails
         
     Example:
         result = await video_tool("A drone flying over a futuristic city at sunset")
     """
     try:
+        # Validate prompt
+        query = validate_prompt(query)
+        
+        # Check API key
+        if not settings.google_api_key:
+            raise JarvisAPIError("GOOGLE_API_KEY not configured")
+        
+        logger.info(f"Generating video for prompt: {query[:50]}{'...' if len(query) > 50 else ''}")
+        
         from google import genai
         from google.genai import types
         client = genai.Client(project="gen-lang-client-0911926804")
-
         generation_model = "veo-2.0-generate-001"
 
         operation = client.models.generate_videos(
@@ -118,10 +172,15 @@ async def video_tool(query: str) -> str:
             ),
         )
 
+        # Poll for completion with timeout
+        timeout_seconds = 300  # 5 minute timeout
+        start_time = time.time()
+        
         while not operation.done:
+            if time.time() - start_time > timeout_seconds:
+                raise JarvisToolError("Video generation timed out")
             time.sleep(5)
             operation = client.operations.get(operation)
-            print(operation)
 
         if operation.response.generated_videos[0].video.video_bytes is not None:
             video_data = operation.response.generated_videos[0].video.video_bytes
@@ -134,10 +193,16 @@ async def video_tool(query: str) -> str:
             elements=[cl.Video(name="video", content=video_data)]
         ).send()
 
+        logger.info("Video generated and sent to user successfully")
         return "The video generated has been sent to the user"
+        
+    except JarvisValidationError:
+        raise
+    except JarvisAPIError:
+        raise
     except Exception as e:
-        logging.error(f"Error in video_tool: {e}")
-        return f"Error generating video: {e}"
+        logger.error(f"Error in video_tool: {e}")
+        raise JarvisToolError(f"Error generating video: {e}")
 
 
 @tool
@@ -162,14 +227,24 @@ async def vocalizer_tool(query: str) -> str:
         - Creates a Chainlit message with the audio attached as an element
         - The original text is included in the message for context
         
-    Error Handling:
-        - Catches and logs any exceptions during audio generation
-        - Returns a descriptive error message when generation fails
+    Raises:
+        JarvisValidationError: If query is invalid
+        JarvisAPIError: If ElevenLabs API fails
+        JarvisToolError: If audio generation fails
         
     Example:
         result = await vocalizer_tool("Hello, I'm Jarvis. How may I assist you today?")
     """
     try:
+        # Validate prompt
+        query = validate_prompt(query)
+        
+        # Check API key
+        if not settings.elevenlabs_api_key:
+            raise JarvisAPIError("ELEVENLABS_API_KEY not configured")
+        
+        logger.info(f"Generating audio for text: {query[:50]}{'...' if len(query) > 50 else ''}")
+        
         audio_data = get_audio_response(query)
 
         await cl.Message(
@@ -177,65 +252,106 @@ async def vocalizer_tool(query: str) -> str:
             elements=[cl.Audio(name="audio", content=audio_data)]
         ).send()
 
+        logger.info("Audio generated and sent to user successfully")
         return "The audio generated has been sent to the user"
+        
+    except JarvisValidationError:
+        raise
+    except JarvisAPIError:
+        raise
     except Exception as e:
-        logging.error(f"Error in vocalizer_tool: {e}")
-        return f"Error generating audio: {e}"
+        logger.error(f"Error in vocalizer_tool: {e}")
+        raise JarvisToolError(f"Error generating audio: {e}")
 
 
 class BoundingBox(BaseModel):
-    box_2d: list[int]
+    box_2d: List[int]
     label: str
+    
+    @validator('box_2d')
+    def validate_bounding_box(cls, v):
+        if len(v) != 4:
+            raise ValueError('Bounding box must have exactly 4 coordinates')
+        if any(coord < 0 or coord > 1000 for coord in v):
+            raise ValueError('Bounding box coordinates must be between 0 and 1000')
+        return v
 
-VISION_INSTRUCTIONS="""Return bounding boxes as an array with labels. Never return masks. Limit to 25 objects.
-    If an object is present multiple times, give each object a unique label according to its distinct characteristics (colors, size, position, etc..)."""
+VISION_INSTRUCTIONS = """Return bounding boxes as an array with labels. Never return masks. Limit to 25 objects.
+If an object is present multiple times, give each object a unique label according to its distinct characteristics (colors, size, position, etc..)."""
 
 
-
-async def plot_bounding_boxes(image_bytes: bytes, bounding_boxes: list[BoundingBox]) -> io.BytesIO:
+async def plot_bounding_boxes(image_bytes: bytes, bounding_boxes: List[BoundingBox]) -> io.BytesIO:
     """
     Plots bounding boxes on an image with markers for each a name, using PIL, normalized coordinates, and different colors.
+    
     Args:
         image_bytes: The image data.
         bounding_boxes: A list of bounding boxes containing the name of the object
-        and their positions in normalized [y1 x1 y2 x2] format.
+                       and their positions in normalized [y1 x1 y2 x2] format.
+                       
+    Returns:
+        io.BytesIO: Image data with bounding boxes plotted
+        
+    Raises:
+        JarvisToolError: If image processing fails
     """
+    try:
+        # Validate input
+        if not image_bytes:
+            raise JarvisValidationError("Image data cannot be empty")
+        
+        if len(bounding_boxes) > MAX_BOUNDING_BOXES:
+            logger.warning(f"Too many bounding boxes ({len(bounding_boxes)}), limiting to {MAX_BOUNDING_BOXES}")
+            bounding_boxes = bounding_boxes[:MAX_BOUNDING_BOXES]
 
-    # Load the image
-    from PIL import Image, ImageColor, ImageDraw, ImageFont
-    with Image.open(io.BytesIO(image_bytes)) as im:
-        width, height = im.size
-        # Create a drawing object
-        draw = ImageDraw.Draw(im)
-        colors = list(ImageColor.colormap.keys())
+        # Load the image
+        from PIL import Image, ImageColor, ImageDraw, ImageFont
+        with Image.open(io.BytesIO(image_bytes)) as im:
+            width, height = im.size
+            
+            # Validate image size
+            if width * height > 50_000_000:  # 50MP limit
+                raise JarvisValidationError("Image too large for processing")
+            
+            # Create a drawing object
+            draw = ImageDraw.Draw(im)
+            colors = list(ImageColor.colormap.keys())
 
-        # Load a font
-        font = ImageFont.load_default(size=int(min(width, height) / 100))
+            # Load a font
+            font = ImageFont.load_default(size=int(min(width, height) / 100))
 
-        # Iterate over the bounding boxes
-        for i, bbox in enumerate(bounding_boxes):
-            # Convert normalized coordinates to absolute coordinates
-            y1, x1, y2, x2 = bbox.box_2d
-            abs_y1 = int(y1 / 1000 * height)
-            abs_x1 = int(x1 / 1000 * width)
-            abs_y2 = int(y2 / 1000 * height)
-            abs_x2 = int(x2 / 1000 * width)
+            # Iterate over the bounding boxes
+            for i, bbox in enumerate(bounding_boxes):
+                try:
+                    # Convert normalized coordinates to absolute coordinates
+                    y1, x1, y2, x2 = bbox.box_2d
+                    abs_y1 = int(y1 / 1000 * height)
+                    abs_x1 = int(x1 / 1000 * width)
+                    abs_y2 = int(y2 / 1000 * height)
+                    abs_x2 = int(x2 / 1000 * width)
 
-            # Select a color from the list
-            color = colors[i % len(colors)]
+                    # Select a color from the list
+                    color = colors[i % len(colors)]
 
-            # Draw the bounding box
-            draw.rectangle(((abs_x1, abs_y1), (abs_x2, abs_y2)), outline=color, width=4)
-            # Draw the text
-            if bbox.label:
-                draw.text((abs_x1 + 8, abs_y1 + 6), bbox.label, fill=color, font=font)
+                    # Draw the bounding box
+                    draw.rectangle(((abs_x1, abs_y1), (abs_x2, abs_y2)), outline=color, width=4)
+                    
+                    # Draw the text (sanitize label)
+                    if bbox.label:
+                        safe_label = bbox.label[:50]  # Limit label length
+                        draw.text((abs_x1 + 8, abs_y1 + 6), safe_label, fill=color, font=font)
+                
+                except Exception as e:
+                    logger.warning(f"Skipping invalid bounding box {i}: {e}")
+                    continue
 
-        img_data = io.BytesIO()
-
-        im.save(img_data, format='PNG')
-
-        return img_data
-
+            img_data = io.BytesIO()
+            im.save(img_data, format='PNG')
+            return img_data
+            
+    except Exception as e:
+        logger.error(f"Error plotting bounding boxes: {e}")
+        raise JarvisToolError(f"Error plotting bounding boxes: {e}")
 
 
 @tool
@@ -260,6 +376,11 @@ async def imager_vision_tool(query: str) -> str:
         - Plots the bounding boxes on the original images
         - Sends both the parsed response and annotated images back to the user
         
+    Raises:
+        JarvisValidationError: If query is invalid or no images found
+        JarvisAPIError: If Google API fails
+        JarvisToolError: If image processing fails
+        
     Note:
         The images are handled directly by this tool from the user session, so they don't
         need to be passed as parameters to the function.
@@ -267,35 +388,74 @@ async def imager_vision_tool(query: str) -> str:
     Example:
         result = await imager_vision_tool("Identify all objects in this image and label them")
     """
+    try:
+        # Validate prompt
+        query = validate_prompt(query)
+        
+        # Check API key
+        if not settings.google_api_key:
+            raise JarvisAPIError("GOOGLE_API_KEY not configured")
+        
+        # Get images from session
+        images: List[cl.ImageElement] = cl.user_session.get("images")
+        if not images:
+            raise JarvisValidationError("No images found in user session")
+        
+        logger.info(f"Analyzing {len(images)} image(s) with query: {query[:50]}{'...' if len(query) > 50 else ''}")
+        
+        from google import genai
+        from google.genai import types
+        client = genai.Client()
+        generation_model = "gemini-2.0-flash-001"
 
-    from google import genai
-    from google.genai import types
-    client = genai.Client()
+        parts = [types.Part.from_bytes(data=image.content, mime_type=image.mime) for image in images]
 
-    generation_model = "gemini-2.0-flash-001"
+        response = client.models.generate_content(
+            model=generation_model,
+            contents=[query] + parts,
+            config=types.GenerateContentConfig(
+                system_instruction=VISION_INSTRUCTIONS,
+                temperature=0.5,
+                response_mime_type="application/json",
+                response_schema=List[BoundingBox]
+            ),
+        )
 
-    images:[cl.ImageElement] = cl.user_session.get("images")
-    parts = [types.Part.from_bytes(data=image.content, mime_type=image.mime) for image in images]
+        cl_images = []
+        for image in images:
+            img_data: io.BytesIO = await plot_bounding_boxes(
+                image_bytes=image.content, 
+                bounding_boxes=response.parsed
+            )
+            cl_images.append(cl.Image(name="img", content=img_data.getvalue()))
 
-    response = client.models.generate_content(
-        model=generation_model,
-        contents=[query] + parts,
-        config=types.GenerateContentConfig(
-            system_instruction=VISION_INSTRUCTIONS,
-            temperature=0.5,
-            response_mime_type="application/json",
-            response_schema=list[BoundingBox]
-        ),
-    )
+        await cl.Message(content=str(response.parsed), elements=cl_images).send()
 
-    cl_images = []
-    for image in images:
-        img_data:io.BytesIO = await plot_bounding_boxes(image_bytes=image.content, bounding_boxes=response.parsed)
-        cl_images.append(cl.Image(name="img", content=img_data.getvalue()))
+        logger.info(f"Vision analysis completed, found {len(response.parsed)} objects")
+        return "The processing was done successfully and the response was sent to the user"
+        
+    except JarvisValidationError:
+        raise
+    except JarvisAPIError:
+        raise
+    except Exception as e:
+        logger.error(f"Error in imager_vision_tool: {e}")
+        raise JarvisToolError(f"Error in vision analysis: {e}")
 
-    await cl.Message(content=str(response.parsed), elements=cl_images).send()
 
-    return "The processing was done successully and the response was send to the user"
+def get_multimodal_tools() -> List:
+    """
+    Returns a list of available multimodal tool functions.
+    
+    Includes image generation, video generation, text-to-speech, and image analysis tools.
+    """
+    tools = [
+        imager_tool,
+        video_tool,
+        vocalizer_tool,
+        imager_vision_tool
+    ]
+    return tools
 
 
 

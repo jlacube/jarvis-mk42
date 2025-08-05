@@ -21,9 +21,16 @@ boto3~=1.37.30
 langchain-openai~=0.3.12
 langchain-anthropic~=0.3.10
 langchain-google-genai~=2.1.2
+langchain-mistralai~=0.5.2
 bcrypt~=4.3.0
 chardet~=5.2.0
 sympy~=1.13.3
 numpy~=2.2.4
 scipy~=1.15.2
 shapely~=2.1.0
+langdetect~=1.0.7
+
+# New dependencies for Phase 1 improvements
+sqlalchemy~=2.0.36
+alembic~=1.14.0
+pydantic-settings~=2.10.1

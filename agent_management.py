@@ -5,21 +5,26 @@ import os
 import pkgutil
 import inspect
 from datetime import datetime
+from typing import List, Optional
 
 import chainlit as cl
 from langchain_core.tools import BaseTool
 from langgraph.prebuilt import create_react_agent
-from config import JARVIS_NAME
-from models.models import get_google_model
-from utils import load_prompt, handle_error
 from langgraph.checkpoint.memory import MemorySaver
 
-logger = logging.getLogger(__name__)
+# Import from new configuration system
+from config.settings import get_settings
+from models.models import get_google_model
+from utils.legacy import load_prompt, handle_error
+from utils.logging_config import get_logger
+from utils.exceptions import AgentError, ConfigurationError
+
+logger = get_logger(__name__)
 
 # Define the package where tools are located
 TOOLS_PACKAGE = "tools"
 
-def get_allowed_tools_from_env(agent_name: str) -> list[str] | None:
+def get_allowed_tools_from_env(agent_name: str) -> Optional[List[str]]:
     """
     Reads the allowed tool list from the .env file for a given agent.
     
@@ -31,7 +36,7 @@ def get_allowed_tools_from_env(agent_name: str) -> list[str] | None:
                           (will be converted to uppercase for env var matching)
                           
     Returns:
-        list[str]: A list of allowed tool names if specified in environment
+        List[str]: A list of allowed tool names if specified in environment
         None: If no tool list is specified or if the .env file is missing
         
     Example:
@@ -44,7 +49,7 @@ def get_allowed_tools_from_env(agent_name: str) -> list[str] | None:
         return [tool.strip() for tool in tool_list_str.split(",")]
     return None
 
-def get_all_tools(allowed_tools: list[str], user_name: str) -> list[BaseTool]:
+def get_all_tools(allowed_tools: Optional[List[str]], user_name: str) -> List[BaseTool]:
     """
     Dynamically discovers and loads tools from the 'tools' package.
     
@@ -53,11 +58,11 @@ def get_all_tools(allowed_tools: list[str], user_name: str) -> list[BaseTool]:
     list if provided, and applies user-specific restrictions.
     
     Args:
-        allowed_tools (list[str]): List of tool names to load. If None, all tools are loaded.
+        allowed_tools (Optional[List[str]]): List of tool names to load. If None, all tools are loaded.
         user_name (str): The username, used for authorization of restricted tools
         
     Returns:
-        list[BaseTool]: List of instantiated tool objects ready for use by an agent
+        List[BaseTool]: List of instantiated tool objects ready for use by an agent
         
     Note:
         - Some tools may have user-specific restrictions (e.g., video_tool)
@@ -87,7 +92,10 @@ def get_all_tools(allowed_tools: list[str], user_name: str) -> list[BaseTool]:
                             if obj.name == 'standard_search_tool':
                                 continue # Skip standard_search_tool as it's not working due to DuckDuckGo Rate Limit
 
+                            # Get settings for user restrictions
+                            settings = get_settings()
                             if obj.name == 'video_tool':
+                                # TODO: Make this configurable instead of hardcoded
                                 if user_name == 'jerome':
                                     tools.append(obj)
                                     logger.info(f"Loaded tool: {name} from module {module_name} - allowed for user {user_name}")
@@ -115,7 +123,7 @@ def get_all_tools(allowed_tools: list[str], user_name: str) -> list[BaseTool]:
     return tools
 
 
-async def create_agent(prompt: str, user_name: str = "", agent_name: str = JARVIS_NAME) -> any:
+async def create_agent(prompt: str, user_name: str = "", agent_name: str = None) -> any:
     """
     Creates an agent with the specified prompt and tools.
     
@@ -125,7 +133,7 @@ async def create_agent(prompt: str, user_name: str = "", agent_name: str = JARVI
     Args:
         prompt (str): The system prompt to use for the agent
         user_name (str, optional): The username, used for tool access control. Defaults to "".
-        agent_name (str, optional): The name to assign to the agent. Defaults to JARVIS_NAME.
+        agent_name (str, optional): The name to assign to the agent. Defaults to configured JARVIS_NAME.
         
     Returns:
         any: The created agent instance, or None if an error occurs
@@ -135,11 +143,15 @@ async def create_agent(prompt: str, user_name: str = "", agent_name: str = JARVI
         - Sends an error message to the user via Chainlit if an error occurs
     """
     try:
+        settings = get_settings()
+        if agent_name is None:
+            agent_name = settings.app.jarvis_name
+            
         model = get_google_model()
         allowed_tools = get_allowed_tools_from_env(agent_name)
         tools = get_all_tools(allowed_tools, user_name)
         app = create_react_agent(
-            name=JARVIS_NAME,
+            name=agent_name,
             model=model,
             tools=tools,
             prompt=prompt,
@@ -148,6 +160,8 @@ async def create_agent(prompt: str, user_name: str = "", agent_name: str = JARVI
         return app
     except Exception as e:
         error_message = handle_error("Error creating agent", e)
+        await cl.Message(content=error_message).send()
+        return None
         await cl.Message(content=error_message).send()
         return None
 
@@ -170,11 +184,13 @@ async def initialize_agent(now: datetime, user_id: str, session_id: str, user_na
         any: The initialized agent instance, or None if an error occurs
         
     Note:
-        - Imports SUPERVISOR_PROMPT_NAME inside the function to avoid circular dependencies
+        - Uses the new configuration system to get the supervisor prompt name
         - Uses load_prompt to format the supervisor prompt with contextual information
     """
     try:
-        from config import SUPERVISOR_PROMPT_NAME  # Import here to avoid circular dependency
+        settings = get_settings()
+        supervisor_prompt_name = settings.app.supervisor_prompt_name
+        
         prompt_kwargs = {
             "now": now,
             "user_id": user_id,
@@ -182,7 +198,7 @@ async def initialize_agent(now: datetime, user_id: str, session_id: str, user_na
             "user_name": user_name,
             "thread_id": thread_id
         }
-        prompt = load_prompt(SUPERVISOR_PROMPT_NAME, **prompt_kwargs)
+        prompt = load_prompt(supervisor_prompt_name, **prompt_kwargs)
         app = await create_agent(prompt, user_name)
         return app
     except Exception as e:

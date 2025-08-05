@@ -10,18 +10,20 @@ from langchain_core.tracers import ConsoleCallbackHandler
 from langgraph.pregel.io import AddableValuesDict
 import chainlit as cl
 
-from config import RECURSION_LIMIT, MPV_INSTALLED
+# Import from new configuration system
+from config.settings import get_settings
+from utils.logging_config import get_logger
+from utils.exceptions import ValidationError, AudioProcessingError
+from utils.legacy import handle_error, validate_user_input
+
 # Import for language detection
 try:
     from langdetect import detect
 except ImportError:
     logging.warning("langdetect not installed. Language detection will not work.")
     detect = None
-# Assuming extract_images_from_message is in utils.py
-# If it's elsewhere, adjust the import accordingly.
-from utils import handle_error
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 async def process_standard_output(res: Any, from_audio: bool = False):
@@ -176,26 +178,29 @@ async def on_message(message: cl.Message):
     Processes incoming messages from users and generates appropriate responses.
     
     This Chainlit event handler function:
-    1. Extracts any images from the message
-    2. Retrieves or initializes the agent for response generation
-    3. Manages conversation history through session variables
-    4. Invokes the agent with appropriate configuration
-    5. Processes and sends the agent's response to the user
+    1. Validates and sanitizes user input
+    2. Extracts any images from the message
+    3. Retrieves or initializes the agent for response generation
+    4. Manages conversation history through session variables
+    5. Invokes the agent with appropriate configuration
+    6. Processes and sends the agent's response to the user
     
     Args:
         message (cl.Message): The incoming message from the user, potentially
                              containing text content and/or file attachments
                              
     Processing Flow:
-        1. Extract and process any images attached to the message
-        2. Verify agent initialization or re-initialize if needed
-        3. Retrieve user and session context from user_session
-        4. Create appropriate inputs for the agent including conversation history
-        5. Configure and invoke the agent with the user's message
-        6. Process the agent's response and send it back to the user
-        7. Update conversation history with both user message and agent response
+        1. Validate and sanitize user input
+        2. Extract and process any images attached to the message
+        3. Verify agent initialization or re-initialize if needed
+        4. Retrieve user and session context from user_session
+        5. Create appropriate inputs for the agent including conversation history
+        6. Configure and invoke the agent with the user's message
+        7. Process the agent's response and send it back to the user
+        8. Update conversation history with both user message and agent response
         
     Error Handling:
+        - Validates input length and content
         - Catches and logs exceptions during message processing
         - Attempts to re-initialize the agent if it's not available
         - Generates user-friendly error messages for any failures
@@ -205,11 +210,25 @@ async def on_message(message: cl.Message):
         through the 'from_audio' metadata flag.
     """
     try:
+        # Validate user input
+        if not message.content:
+            await cl.Message(content="I received an empty message. Please send me a message to assist you.").send()
+            return
+            
+        try:
+            # Validate and sanitize the input
+            sanitized_content = validate_user_input(message.content, max_length=50000)
+            message.content = sanitized_content
+        except ValidationError as e:
+            await cl.Message(content=f"Invalid input: {e.message}").send()
+            return
+        
         images = extract_images_from_message(message)
         if images:
             cl.user_session.set("images", images)
 
-        from chainlit_setup import init_chainlit  # Import here to avoid circular dependency
+        # Import here to avoid circular dependency
+        from chainlit_setup import init_chainlit
 
         app = cl.user_session.get("app")
         if not app:
@@ -254,12 +273,12 @@ async def on_message(message: cl.Message):
             cl.user_session.set("previous_messages", previous_messages + [current_input])
             logger.debug(f"Appended current message to previous_messages for session {session_id}")
 
-
+        settings = get_settings()
         runnable_config = RunnableConfig(callbacks=[
             cl.AsyncLangchainCallbackHandler(
                 to_ignore=["__start__", "Prompt", "_write"],
             ),
-            ConsoleCallbackHandler()], configurable=dict([("thread_id", thread_id)]), recursion_limit=RECURSION_LIMIT)
+            ConsoleCallbackHandler()], configurable=dict([("thread_id", thread_id)]), recursion_limit=settings.models.recursion_limit)
 
         logger.info(f"Invoking agent for thread_id: {thread_id}")
         res = await app.ainvoke(inputs, config=runnable_config)
@@ -277,8 +296,11 @@ async def on_message(message: cl.Message):
 
         await process_standard_output(res, from_audio=from_audio)
 
+    except ValidationError as e:
+        logger.warning(f"Input validation failed: {e}")
+        await cl.Message(content=f"Invalid input: {e.message}").send()
     except Exception as e:
         logger.error(f"Error processing message: {e}", exc_info=True) # Log the full error with traceback
         error_message = handle_error("Error processing message", e)
-        raise
+        await cl.Message(content=error_message).send()
 

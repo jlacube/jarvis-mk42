@@ -1,4 +1,5 @@
-# utils.py
+# utils/legacy.py
+# Legacy utility functions - moved from utils.py
 import datetime
 import logging
 from typing import Optional, Dict, Any
@@ -6,35 +7,8 @@ import traceback
 
 from langchain_core.prompts import PromptTemplate
 from prompts import get_prompt
-# utils.py - Legacy compatibility layer
-# This file maintains backward compatibility for existing imports
-# New code should import directly from utils.legacy or specific modules
-
-# Import all the utilities to maintain backward compatibility
-from utils.legacy import (
-    load_prompt,
-    handle_error,
-    validate_user_input,
-    sanitize_filename,
-    get_safe_file_path
-)
-
-# Also import exceptions for any code that might use them
-from utils.exceptions import *
-
-# Re-export everything for backward compatibility
-__all__ = [
-    "load_prompt",
-    "handle_error", 
-    "validate_user_input",
-    "sanitize_filename",
-    "get_safe_file_path",
-    # Exceptions
-    "JarvisError", "ConfigurationError", "AuthenticationError", "AuthorizationError",
-    "ToolError", "AgentError", "APIError", "ValidationError", "DatabaseError",
-    "SessionError", "AudioProcessingError", "ImageProcessingError", "VideoProcessingError"
-]
-from utils.logging_config import get_logger
+from .exceptions import JarvisError, ConfigurationError, ValidationError
+from .logging_config import get_logger
 
 def load_prompt(prompt_name: str, **kwargs: dict) -> str:
     """Loads and formats a prompt.
@@ -122,8 +96,6 @@ def validate_user_input(input_text: str, max_length: int = 10000, min_length: in
     Raises:
         ValidationError: If input doesn't meet requirements
     """
-    from utils.exceptions import ValidationError
-    
     if not isinstance(input_text, str):
         raise ValidationError("Input must be a string", field="input_text", value=type(input_text))
     
@@ -157,9 +129,6 @@ def sanitize_filename(filename: str) -> str:
     Raises:
         ValidationError: If filename is invalid
     """
-    from utils.exceptions import ValidationError
-    import os
-    
     if not filename or not isinstance(filename, str):
         raise ValidationError("Filename must be a non-empty string", field="filename", value=filename)
     
@@ -196,7 +165,6 @@ def get_safe_file_path(base_dir: str, filename: str) -> str:
     """
     import os
     from pathlib import Path
-    from utils.exceptions import ValidationError
     
     # Sanitize the filename
     safe_filename = sanitize_filename(filename)
