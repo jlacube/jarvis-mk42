@@ -1,0 +1,72 @@
+{
+  "summary": {
+    "components_optimized": 4,
+    "total_memory_before_mb": 550.8000000000001,
+    "total_memory_after_mb": 551.6125000000001,
+    "total_memory_saved_mb": -0.8125,
+    "avg_memory_reduction_percent": -0.14818870302128156,
+    "total_cpu_before_percent": 398.6,
+    "total_cpu_after_percent": 275.988,
+    "avg_cpu_reduction_percent": 30.899999999999995,
+    "optimization_success": false
+  },
+  "component_results": {
+    "cognitive_architecture": {
+      "memory_before_mb": 146.0,
+      "memory_after_mb": 146.0625,
+      "memory_reduction_percent": -0.04280821917808219,
+      "cpu_before_percent": 100.0,
+      "cpu_after_percent": 199.4,
+      "cpu_reduction_percent": -99.4,
+      "optimizations_applied": [
+        "Garbage collection and cache clearing"
+      ],
+      "memory_target_met": false,
+      "cpu_target_met": false
+    },
+    "multimodal_engine": {
+      "memory_before_mb": 136.3,
+      "memory_after_mb": 136.3,
+      "memory_reduction_percent": 0.0,
+      "cpu_before_percent": 98.7,
+      "cpu_after_percent": 29.61,
+      "cpu_reduction_percent": 70.0,
+      "optimizations_applied": [
+        "System cache clearing"
+      ],
+      "memory_target_met": false,
+      "cpu_target_met": false
+    },
+    "adaptive_learning": {
+      "memory_before_mb": 136.4,
+      "memory_after_mb": 137.14609375,
+      "memory_reduction_percent": -0.5469895527859236,
+      "cpu_before_percent": 100.0,
+      "cpu_after_percent": 25.0,
+      "cpu_reduction_percent": 75.0,
+      "optimizations_applied": [
+        "System cache clearing"
+      ],
+      "memory_target_met": false,
+      "cpu_target_met": false
+    },
+    "knowledge_manager": {
+      "memory_before_mb": 132.1,
+      "memory_after_mb": 132.10390625,
+      "memory_reduction_percent": -0.0029570401211203635,
+      "cpu_before_percent": 99.9,
+      "cpu_after_percent": 21.978,
+      "cpu_reduction_percent": 77.99999999999999,
+      "optimizations_applied": [
+        "System cache clearing"
+      ],
+      "memory_target_met": false,
+      "cpu_target_met": false
+    }
+  },
+  "targets_met": {
+    "memory_targets_met": 0,
+    "cpu_targets_met": 0,
+    "overall_success": false
+  }
+}
