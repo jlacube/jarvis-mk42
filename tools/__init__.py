@@ -37,6 +37,20 @@ def get_all_tools() -> List[BaseTool]:
     except ImportError as e:
         print(f"Document intelligence tools not available: {e}")
     
+    # Language detection tools (Phase 2B.3)
+    try:
+        from .language_detection import get_language_detection_tools
+        tools.extend(get_language_detection_tools())
+    except ImportError as e:
+        print(f"Language detection tools not available: {e}")
+    
+    # Enhanced research tools (Phase 2B.3)
+    try:
+        from .enhanced_research_tools import get_enhanced_research_tools
+        tools.extend(get_enhanced_research_tools())
+    except ImportError as e:
+        print(f"Enhanced research tools not available: {e}")
+    
     # Optional tools based on system capabilities
     try:
         from .plotting import get_plotting_tools

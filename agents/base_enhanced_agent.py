@@ -28,7 +28,7 @@ from enum import Enum
 
 import chainlit as cl
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
-from langgraph.graph.graph import CompiledGraph
+from langgraph.graph import StateGraph
 
 # Import Phase 2B.2 Communication Framework
 from communication.protocols import (
@@ -89,6 +89,7 @@ class AgentMetrics:
     messages_received: int = 0
     conflicts_participated: int = 0
     conflicts_resolved: int = 0
+    failed_requests: int = 0
     average_response_time: float = 0.0
     success_rate: float = 1.0
     last_activity: Optional[datetime] = None
