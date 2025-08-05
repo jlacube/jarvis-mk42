@@ -44,18 +44,18 @@ class AudioSettings(BaseSettings):
 
 class SecuritySettings(BaseSettings):
     """Security and authentication settings"""
-    secret_key: str = Field(..., env="SECRET_KEY")
-    allowed_users: List[str] = Field(["admin"], env="ALLOWED_USERS")
+    secret_key: str = Field("default-secret-key", env="SECRET_KEY")  # Make optional with default
+    allowed_users: str = Field("admin", env="ALLOWED_USERS")  # Store as string, parse in property
     enforce_users: bool = Field(True, env="ENFORCE_USERS")
     session_timeout: int = Field(3600, env="SESSION_TIMEOUT")  # 1 hour
     max_login_attempts: int = Field(5, env="MAX_LOGIN_ATTEMPTS")
-
-    @field_validator('allowed_users', mode='before')
-    @classmethod
-    def parse_allowed_users(cls, v):
-        if isinstance(v, str):
-            return [user.strip().lower() for user in v.split(',')]
-        return [user.lower() for user in v]
+    
+    @property
+    def allowed_users_list(self) -> List[str]:
+        """Get allowed users as a list"""
+        if isinstance(self.allowed_users, str):
+            return [user.strip().lower() for user in self.allowed_users.split(',') if user.strip()]
+        return []
 
 class LoggingSettings(BaseSettings):
     """Logging configuration settings"""

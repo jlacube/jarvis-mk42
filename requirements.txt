@@ -34,3 +34,12 @@ langdetect~=1.0.7
 sqlalchemy~=2.0.36
 alembic~=1.14.0
 pydantic-settings~=2.10.1
+
+# Phase 2A: Enhanced Document Intelligence
+PyPDF2~=3.0.1
+PyMuPDF~=1.25.2
+python-docx~=1.1.2
+pytesseract~=0.3.13
+pillow~=11.0.0
+openpyxl~=3.1.5
+xlrd~=2.0.1
