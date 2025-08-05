@@ -31,6 +31,18 @@ class AgentError(JarvisError):
     """Raised when an agent fails to process a request"""
     pass
 
+class WorkflowError(JarvisError):
+    """Raised when a workflow execution fails"""
+    pass
+
+class PlanningError(JarvisError):
+    """Raised when task planning fails"""
+    pass
+
+class CoordinationError(JarvisError):
+    """Raised when agent coordination fails"""
+    pass
+
 class APIError(JarvisError):
     """Raised when an external API call fails"""
     def __init__(self, message: str, service: str, status_code: int = None, **kwargs):

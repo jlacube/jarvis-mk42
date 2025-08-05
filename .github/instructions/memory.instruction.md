@@ -23,6 +23,14 @@ applyTo: '**'
 - Automated document comparison and content insights
 - Enterprise-grade document processing with robust error handling
 
+### Known Issues & Technical Debt
+- **Language Adherence Defect** (Phase 2B) - Medium Priority
+  - **Issue**: Document intelligence system doesn't detect or preserve document language
+  - **Impact**: Reduced OCR accuracy for non-English documents, suboptimal content analysis
+  - **Root Cause**: Missing language detection integration, OCR processing without language hints
+  - **Resolution Target**: Phase 2B (requires AI integration and enhanced language processing)
+  - **Workaround**: Currently processes all documents as English-default
+
 ## Phase 1 Implementation - COMPLETED ✅ (August 5, 2025)
 
 ### Major Achievements
@@ -58,17 +66,44 @@ applyTo: '**'
 - **Tools**: Security-hardened file operations, research capabilities, and multimodal processing
 - **Testing**: Automated validation suite ensuring system integrity
 
-## Phase 2 Planning - NEXT
-Focus areas identified for Phase 2 implementation:
-1. **Advanced Agent Orchestration** - Enhanced LangGraph workflows and multi-agent coordination
-2. **Multi-Modal Intelligence** - Advanced vision, audio, and document processing capabilities
-3. **Real-time Collaboration** - WebSocket integration and live user interaction
-4. **Plugin Architecture** - Dynamic tool loading and user-extensible functionality
-5. **Advanced Analytics** - Usage patterns, performance insights, and optimization metrics
+## Phase 2B Planning - NEXT: Multi-Agent Orchestration
+
+**Strategic Focus**: Transform Jarvis from single-agent to sophisticated multi-agent orchestration system
+
+### Phase 2B Objectives
+1. **Supervisor Agent Architecture**
+   - Intelligent task routing and delegation
+   - Multi-agent coordination and communication protocols
+   - Dynamic agent selection based on task requirements
+   - Workflow state management and progress tracking
+
+2. **Agent Specialization Framework**
+   - Enhanced reasoning agent with advanced cognitive capabilities
+   - Specialized research agent with domain expertise
+   - Dedicated coding agent with development workflow integration
+   - Document intelligence agent leveraging Phase 2A foundation
+
+3. **Inter-Agent Communication System**
+   - Agent-to-agent message passing and data sharing
+   - Context preservation across agent handoffs
+   - Collaborative problem-solving workflows
+   - Resource allocation and conflict resolution
+
+4. **Advanced AI Integration**
+   - Language detection and multi-language processing (addresses language adherence defect)
+   - Enhanced semantic understanding and reasoning
+   - Cross-modal AI capabilities (text, vision, audio)
+   - Adaptive learning from user interactions
+
+### Implementation Strategy
+- **Build on Phase 2A Foundation**: Leverage document intelligence for knowledge workflows
+- **Incremental Agent Enhancement**: Upgrade existing agents with orchestration capabilities
+- **LangGraph Workflow Engine**: Implement sophisticated multi-agent workflows
+- **Enterprise Integration**: Maintain security, logging, and configuration standards
 
 ## Development Context
 - **Repository**: jarvis-mk42 (Owner: jlacube)
-- **Current Branch**: coding-buddy-refactor (ready for merge to main)
-- **Staged Changes**: 25 files with comprehensive Phase 1 implementation
-- **Test Status**: All Phase 1 tests passing (7/7)
+- **Current Branch**: main (Phase 2A merged)
+- **Phase 2A Status**: COMPLETED ✅ - 19/19 tests passing, full document intelligence
+- **Next Implementation**: Phase 2B Multi-Agent Orchestration
 - **Environment**: Python 3.9, Windows development environment

@@ -4,7 +4,7 @@ elevenlabs~=1.56.0
 python-dotenv~=1.1.0
 chainlit~=2.4.400
 langchain-core~=0.3.51
-langgraph~=0.3.25
+langgraph==0.6.3
 protobuf~=5.29.4
 google-genai
 
