@@ -35,7 +35,7 @@ from communication.protocols import (
     AgentMessage, MessageType, MessagePriority, AgentType,
     RequestMessage, ResponseMessage, NotificationMessage
 )
-from communication.message_bus import MessageBus
+from communication.message_bus import MessageBus, MessageHandler
 from communication.context_manager import ContextManager, ContextScope
 from communication.conflict_resolver import (
     ConflictResolver, ConflictType, ResolutionStrategy, ConflictSeverity
@@ -95,7 +95,7 @@ class AgentMetrics:
     last_activity: Optional[datetime] = None
 
 
-class BaseEnhancedAgent(ABC):
+class BaseEnhancedAgent(MessageHandler, ABC):
     """
     Base class for all enhanced agents with communication framework integration.
     
@@ -126,6 +126,9 @@ class BaseEnhancedAgent(ABC):
             context_manager: Context manager for shared state
             conflict_resolver: Conflict resolver for handling conflicts
         """
+        # Initialize MessageHandler
+        super().__init__(handler_id=agent_id)
+        
         self.agent_id = agent_id
         self.agent_type = agent_type
         self.agent_name = agent_name
@@ -208,8 +211,8 @@ class BaseEnhancedAgent(ABC):
             
             # Unsubscribe from messages
             if self.message_bus:
-                for subscription in self.message_subscriptions:
-                    await self.message_bus.unsubscribe(subscription, self._handle_message)
+                for subscription_id in self.message_subscriptions:
+                    self.message_bus.unsubscribe(subscription_id)
             
             # Complete active tasks
             for task_id in list(self.active_tasks.keys()):
@@ -445,57 +448,77 @@ class BaseEnhancedAgent(ABC):
         if not self.message_bus:
             return
         
-        # Subscribe to messages addressed to this agent
-        subscription_filters = [
-            f"recipient_id:{self.agent_id}",
-            f"recipient_type:{self.agent_type.value}",
-            "type:broadcast"  # Subscribe to broadcast messages
-        ]
+        # Subscribe to relevant message types
+        message_types = {
+            MessageType.REQUEST,
+            MessageType.NOTIFICATION,
+            MessageType.BROADCAST
+        }
         
-        for filter_expr in subscription_filters:
-            await self.message_bus.subscribe(filter_expr, self._handle_message)
-            self.message_subscriptions.append(filter_expr)
+        # Subscribe this agent as a message handler
+        subscription_id = self.message_bus.subscribe(
+            handler=self,
+            message_types=message_types
+        )
+        
+        self.message_subscriptions.append(subscription_id)
     
-    async def _handle_message(self, message: AgentMessage) -> None:
+    async def handle_message(self, message: AgentMessage) -> Optional[AgentMessage]:
+        """
+        MessageHandler implementation - handle incoming messages from other agents.
+        """
+        return await self._handle_message(message)
+
+    async def _handle_message(self, message: AgentMessage) -> Optional[AgentMessage]:
         """Handle incoming messages from other agents."""
         try:
             self.metrics.messages_received += 1
             self.logger.info(f"Received message from {message.sender_id}: {message.subject}")
             
-            # Process message based on type
+            # Process message based on type and return potential response
             if message.type == MessageType.REQUEST:
-                await self._handle_request_message(message)
+                return await self._handle_request_message(message)
             elif message.type == MessageType.NOTIFICATION:
-                await self._handle_notification_message(message)
+                return await self._handle_notification_message(message)
             elif message.type == MessageType.BROADCAST:
-                await self._handle_broadcast_message(message)
+                return await self._handle_broadcast_message(message)
+            
+            return None
             
         except Exception as e:
             self.logger.error(f"Error handling message: {e}")
+            return None
     
-    async def _handle_request_message(self, message: AgentMessage) -> None:
+    async def _handle_request_message(self, message: AgentMessage) -> Optional[AgentMessage]:
         """Handle request messages from other agents."""
         # Default implementation - can be overridden by subclasses
         self.logger.info(f"Processing request from {message.sender_id}")
         
-        # Send acknowledgment
-        await self.send_message(
+        # Create acknowledgment response
+        response = AgentMessage(
+            sender_id=self.agent_id,
+            sender_type=self.agent_type,
             recipient_id=message.sender_id,
             recipient_type=message.sender_type,
             subject=f"Re: {message.subject}",
             content={"status": "received", "message_id": message.id},
-            message_type=MessageType.RESPONSE
+            message_type=MessageType.RESPONSE,
+            priority=message.priority
         )
+        
+        return response
     
-    async def _handle_notification_message(self, message: AgentMessage) -> None:
+    async def _handle_notification_message(self, message: AgentMessage) -> Optional[AgentMessage]:
         """Handle notification messages from other agents."""
         # Default implementation - can be overridden by subclasses
         self.logger.info(f"Received notification from {message.sender_id}: {message.subject}")
+        return None
     
-    async def _handle_broadcast_message(self, message: AgentMessage) -> None:
+    async def _handle_broadcast_message(self, message: AgentMessage) -> Optional[AgentMessage]:
         """Handle broadcast messages."""
         # Default implementation - can be overridden by subclasses
         self.logger.info(f"Received broadcast: {message.subject}")
+        return None
     
     async def _update_shared_context(self, task_id: str, context: Dict[str, Any]) -> None:
         """Update shared context with task information."""

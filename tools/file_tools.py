@@ -274,3 +274,12 @@ async def write_file_tool(
     except Exception as e:
         logger.error(f"Unexpected error writing file '{filename}': {e}")
         return {"status": "error", "message": f"Failed to write file '{filename}': {str(e)}"}
+
+
+def get_file_tools():
+    """Get all file tools for agent use."""
+    return [
+        list_jarvis_files,
+        read_file_content,
+        write_file_tool
+    ]

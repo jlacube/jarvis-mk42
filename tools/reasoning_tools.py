@@ -277,3 +277,12 @@ async def clear_history(user_id: str, thread_id: str) -> dict:
     thought_history.clear()
     return {"status": "success", "message": "Thought history cleared"}
 
+
+def get_reasoning_tools():
+    """Get all reasoning tools for agent use."""
+    return [
+        sequential_thinking_tool,
+        generate_summary,
+        clear_history
+    ]
+
