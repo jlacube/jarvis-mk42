@@ -1,6 +1,6 @@
 # agents/coding_agent.py
 from langchain_core.prompts import PromptTemplate
-from langgraph.graph.graph import CompiledGraph
+from langgraph.graph.state import CompiledStateGraph
 from langgraph.prebuilt import create_react_agent
 
 from agent_management import get_allowed_tools_from_env, get_all_tools
@@ -14,7 +14,7 @@ from tools.research_tools import get_research_tools
 import chainlit as cl
 
 
-async def get_coding_agent() -> CompiledGraph:
+async def get_coding_agent() -> CompiledStateGraph:
     agent_name = "Coding_Agent"  # Define the agent name
     allowed_tools = get_allowed_tools_from_env(agent_name)  # Get allowed tools from .env
 

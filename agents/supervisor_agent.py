@@ -476,6 +476,16 @@ class SupervisorAgent:
         try:
             logger.info("Orchestrator node processing state")
             
+            # Track orchestrator calls to prevent infinite loops
+            orchestrator_calls = state.get('orchestrator_calls', 0) + 1
+            if orchestrator_calls > 10:  # Prevent infinite loops
+                logger.warning("Orchestrator called too many times, moving to synthesis")
+                return {
+                    **state,
+                    "workflow_status": "synthesis",
+                    "error_messages": state.get("error_messages", []) + ["Workflow exceeded maximum iterations"]
+                }
+            
             # Convert state to WorkflowState if needed
             if isinstance(state.get('task_analysis'), dict):
                 # State came from graph, convert back to objects
@@ -502,8 +512,9 @@ class SupervisorAgent:
                 )
                 workflow_state.workflow_status = "executing"
             
-            # Update active agents
-            workflow_state.active_agents = self.select_agents(workflow_state.task_analysis)
+            # Update active agents only if not already set
+            if not workflow_state.active_agents:
+                workflow_state.active_agents = self.select_agents(workflow_state.task_analysis)
             
             # Convert back to dict for graph state
             return {
@@ -516,7 +527,8 @@ class SupervisorAgent:
                 "agent_results": workflow_state.agent_results,
                 "workflow_status": workflow_state.workflow_status,
                 "error_messages": workflow_state.error_messages,
-                "final_response": workflow_state.final_response or ""
+                "final_response": workflow_state.final_response or "",
+                "orchestrator_calls": orchestrator_calls
             }
             
         except Exception as e:
@@ -532,13 +544,28 @@ class SupervisorAgent:
         try:
             active_agents = state.get('active_agents', [])
             completed_subtasks = state.get('completed_subtasks', [])
+            agent_results = state.get('agent_results', {})
+            orchestrator_calls = state.get('orchestrator_calls', 0)
+            
+            # If we've called orchestrator too many times, go to synthesizer
+            if orchestrator_calls > 10:
+                logger.warning("Too many orchestrator calls, going to synthesizer")
+                return "synthesizer"
             
             # If no active agents, go to synthesizer
             if not active_agents:
+                logger.info("No active agents, routing to synthesizer")
+                return "synthesizer"
+            
+            # If we have results and errors, go to synthesizer
+            error_messages = state.get('error_messages', [])
+            if len(agent_results) > 0 and len(error_messages) > 0:
+                logger.info("Have results and errors, routing to synthesizer")
                 return "synthesizer"
             
             # Route to first active agent
             first_agent = active_agents[0]
+            logger.info(f"Routing to agent: {first_agent}")
             
             agent_routing = {
                 "reasoning": "reasoning_agent",
@@ -552,86 +579,372 @@ class SupervisorAgent:
             
         except Exception as e:
             logger.error("Error in routing: %s", str(e))
-            return END
+            return "synthesizer"
     
     def _check_workflow_complete(self, state: Dict[str, Any]) -> str:
         """Check if workflow is complete or needs more agent work."""
         try:
             active_agents = state.get('active_agents', [])
             workflow_status = state.get('workflow_status', 'planning')
+            agent_results = state.get('agent_results', {})
+            error_messages = state.get('error_messages', [])
             
+            # If there's a critical error, synthesize
             if workflow_status == "error":
                 return "synthesize"
             
-            if len(active_agents) <= 1:  # Current agent is the last one
+            # If we have too many errors, synthesize 
+            if len(error_messages) >= 3:
                 return "synthesize"
-            else:
-                return "continue"
+            
+            # If no more active agents or only one left, synthesize
+            if len(active_agents) <= 1:
+                return "synthesize"
+            
+            # If we have some results and some agents failed, synthesize what we have
+            if len(agent_results) > 0 and len(error_messages) > 0:
+                return "synthesize"
+            
+            # Continue with remaining agents
+            return "continue"
                 
         except Exception as e:
             logger.error("Error checking workflow completion: %s", str(e))
             return "synthesize"
     
-    # Agent node implementations (placeholders for now)
-    def _reasoning_agent_node(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        """Reasoning agent node implementation."""
+    # Agent node implementations with real agent integration
+    async def _reasoning_agent_node(self, state: Dict[str, Any]) -> Dict[str, Any]:
+        """Reasoning agent node implementation with real agent integration."""
         logger.info("Reasoning agent node called")
-        # TODO: Implement reasoning agent integration
-        return {
-            **state,
-            "agent_results": {
-                **state.get("agent_results", {}),
-                "reasoning": "Reasoning agent result placeholder"
+        
+        try:
+            # Import the enhanced reasoning agent
+            from agents.enhanced_reasoning_agent import EnhancedReasoningAgent
+            from communication.protocols import AgentType
+            from communication.context_manager import ContextScope
+            from communication.conflict_resolver import ResolutionStrategy
+            from agents.base_enhanced_agent import AgentCapabilities, CommunicationMode
+            
+            # Create agent capabilities
+            capabilities = AgentCapabilities(
+                primary_functions=["logical_reasoning", "problem_solving", "analysis"],
+                supported_languages=["en", "fr", "es", "de"],
+                communication_modes=[CommunicationMode.COLLABORATIVE],
+                conflict_resolution_strategies=[ResolutionStrategy.CONSENSUS_BUILDING],
+                context_scopes=[ContextScope.TASK, ContextScope.WORKFLOW]
+            )
+            
+            # Create reasoning agent instance
+            reasoning_agent = EnhancedReasoningAgent(
+                agent_id=f"reasoning_{datetime.now().timestamp()}"
+            )
+            
+            # Initialize the agent
+            await reasoning_agent.initialize()
+            
+            # Process the request
+            user_request = state.get('user_request', '')
+            session_context = state.get('session_context', {})
+            
+            result = await reasoning_agent.process_request(
+                request=user_request,
+                context=session_context
+            )
+            
+            # Extract the response
+            agent_response = result.get('response', 'Reasoning completed successfully.')
+            
+            return {
+                **state,
+                "agent_results": {
+                    **state.get("agent_results", {}),
+                    "reasoning": agent_response
+                },
+                "active_agents": [agent for agent in state.get("active_agents", []) if agent != "reasoning"]
             }
-        }
+            
+        except Exception as e:
+            logger.error(f"Error in reasoning agent node: {e}")
+            return {
+                **state,
+                "agent_results": {
+                    **state.get("agent_results", {}),
+                    "reasoning": f"I encountered an error during reasoning: {str(e)}"
+                },
+                "active_agents": [agent for agent in state.get("active_agents", []) if agent != "reasoning"],
+                "error_messages": state.get("error_messages", []) + [f"Reasoning agent error: {str(e)}"]
+            }
     
-    def _research_agent_node(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        """Research agent node implementation.""" 
+    async def _research_agent_node(self, state: Dict[str, Any]) -> Dict[str, Any]:
+        """Research agent node implementation with real agent integration."""
         logger.info("Research agent node called")
-        # TODO: Implement research agent integration
-        return {
-            **state,
-            "agent_results": {
-                **state.get("agent_results", {}),
-                "research": "Research agent result placeholder"
+        
+        try:
+            # Import the enhanced research agent
+            from agents.enhanced_research_agent import EnhancedResearchAgent
+            from communication.protocols import AgentType
+            from communication.context_manager import ContextScope
+            from communication.conflict_resolver import ResolutionStrategy
+            from agents.base_enhanced_agent import AgentCapabilities, CommunicationMode
+            
+            # Create agent capabilities
+            capabilities = AgentCapabilities(
+                primary_functions=["web_research", "fact_verification", "information_synthesis"],
+                supported_languages=["en", "fr", "es", "de", "ja", "zh"],
+                communication_modes=[CommunicationMode.COLLABORATIVE],
+                conflict_resolution_strategies=[ResolutionStrategy.EXPERT_OVERRIDE],
+                context_scopes=[ContextScope.TASK, ContextScope.WORKFLOW]
+            )
+            
+            # Create research agent instance
+            research_agent = EnhancedResearchAgent(
+                agent_id=f"research_{datetime.now().timestamp()}"
+            )
+            
+            # Initialize the agent
+            await research_agent.initialize()
+            
+            # Process the request
+            user_request = state.get('user_request', '')
+            session_context = state.get('session_context', {})
+            
+            result = await research_agent.process_request(
+                request=user_request,
+                context=session_context
+            )
+            
+            # Extract the response
+            agent_response = result.get('response', 'Research completed successfully.')
+            
+            return {
+                **state,
+                "agent_results": {
+                    **state.get("agent_results", {}),
+                    "research": agent_response
+                },
+                "active_agents": [agent for agent in state.get("active_agents", []) if agent != "research"]
             }
-        }
+            
+        except Exception as e:
+            logger.error(f"Error in research agent node: {e}")
+            return {
+                **state,
+                "agent_results": {
+                    **state.get("agent_results", {}),
+                    "research": f"I encountered an error during research: {str(e)}"
+                },
+                "active_agents": [agent for agent in state.get("active_agents", []) if agent != "research"],
+                "error_messages": state.get("error_messages", []) + [f"Research agent error: {str(e)}"]
+            }
     
-    def _coding_agent_node(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        """Coding agent node implementation."""
+    
+    async def _coding_agent_node(self, state: Dict[str, Any]) -> Dict[str, Any]:
+        """Coding agent node implementation with real agent integration."""
         logger.info("Coding agent node called")
-        # TODO: Implement coding agent integration
-        return {
-            **state,
-            "agent_results": {
-                **state.get("agent_results", {}),
-                "coding": "Coding agent result placeholder"
+        
+        try:
+            # Import the enhanced coding agent
+            from agents.enhanced_coding_agent import EnhancedCodingAgent
+            from communication.protocols import AgentType
+            from communication.context_manager import ContextScope
+            from communication.conflict_resolver import ResolutionStrategy
+            from agents.base_enhanced_agent import AgentCapabilities, CommunicationMode
+            
+            # Create agent capabilities
+            capabilities = AgentCapabilities(
+                primary_functions=["code_generation", "debugging", "code_review", "architecture_design"],
+                supported_languages=["en", "fr", "es", "de"],
+                communication_modes=[CommunicationMode.COLLABORATIVE],
+                conflict_resolution_strategies=[ResolutionStrategy.EXPERT_OVERRIDE],
+                context_scopes=[ContextScope.TASK, ContextScope.WORKFLOW]
+            )
+            
+            # Create coding agent instance
+            coding_agent = EnhancedCodingAgent(
+                agent_id=f"coding_{datetime.now().timestamp()}",
+                agent_type=AgentType.CODING,
+                agent_name="Enhanced Coding Agent",
+                capabilities=capabilities
+            )
+            
+            # Initialize the agent
+            await coding_agent.initialize()
+            
+            # Process the request
+            user_request = state.get('user_request', '')
+            session_context = state.get('session_context', {})
+            
+            result = await coding_agent.process_request(
+                request=user_request,
+                context=session_context
+            )
+            
+            # Extract the response
+            agent_response = result.get('response', 'Coding task completed successfully.')
+            
+            return {
+                **state,
+                "agent_results": {
+                    **state.get("agent_results", {}),
+                    "coding": agent_response
+                },
+                "active_agents": [agent for agent in state.get("active_agents", []) if agent != "coding"]
             }
-        }
+            
+        except Exception as e:
+            logger.error(f"Error in coding agent node: {e}")
+            return {
+                **state,
+                "agent_results": {
+                    **state.get("agent_results", {}),
+                    "coding": f"I encountered an error during coding: {str(e)}"
+                },
+                "active_agents": [agent for agent in state.get("active_agents", []) if agent != "coding"],
+                "error_messages": state.get("error_messages", []) + [f"Coding agent error: {str(e)}"]
+            }
     
-    def _document_agent_node(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        """Document intelligence agent node implementation."""
+    async def _document_agent_node(self, state: Dict[str, Any]) -> Dict[str, Any]:
+        """Document intelligence agent node implementation with real agent integration."""
         logger.info("Document intelligence agent node called")
-        # TODO: Implement document intelligence agent integration
-        return {
-            **state,
-            "agent_results": {
-                **state.get("agent_results", {}),
-                "document_intelligence": "Document agent result placeholder"
+        
+        try:
+            # Import the enhanced document intelligence agent
+            from agents.enhanced_document_intelligence_agent import EnhancedDocumentIntelligenceAgent
+            from communication.protocols import AgentType
+            from communication.context_manager import ContextScope
+            from communication.conflict_resolver import ResolutionStrategy
+            from agents.base_enhanced_agent import AgentCapabilities, CommunicationMode
+            
+            # Create agent capabilities
+            capabilities = AgentCapabilities(
+                primary_functions=["document_analysis", "content_extraction", "document_comparison"],
+                supported_languages=["en", "fr", "es", "de", "ja", "zh"],
+                communication_modes=[CommunicationMode.COLLABORATIVE],
+                conflict_resolution_strategies=[ResolutionStrategy.MERGE_COMPATIBLE],
+                context_scopes=[ContextScope.TASK, ContextScope.WORKFLOW]
+            )
+            
+            # Create document intelligence agent instance
+            doc_agent = EnhancedDocumentIntelligenceAgent(
+                agent_id=f"document_{datetime.now().timestamp()}",
+                agent_type=AgentType.DOCUMENT_INTELLIGENCE,
+                agent_name="Enhanced Document Intelligence Agent",
+                capabilities=capabilities
+            )
+            
+            # Initialize the agent
+            await doc_agent.initialize()
+            
+            # Process the request
+            user_request = state.get('user_request', '')
+            session_context = state.get('session_context', {})
+            
+            result = await doc_agent.process_request(
+                request=user_request,
+                context=session_context
+            )
+            
+            # Extract the response
+            agent_response = result.get('response', 'Document analysis completed successfully.')
+            
+            return {
+                **state,
+                "agent_results": {
+                    **state.get("agent_results", {}),
+                    "document_intelligence": agent_response
+                },
+                "active_agents": [agent for agent in state.get("active_agents", []) if agent != "document_intelligence"]
             }
-        }
+            
+        except Exception as e:
+            logger.error(f"Error in document intelligence agent node: {e}")
+            return {
+                **state,
+                "agent_results": {
+                    **state.get("agent_results", {}),
+                    "document_intelligence": f"I encountered an error during document analysis: {str(e)}"
+                },
+                "active_agents": [agent for agent in state.get("active_agents", []) if agent != "document_intelligence"],
+                "error_messages": state.get("error_messages", []) + [f"Document agent error: {str(e)}"]
+            }
     
-    def _multimodal_agent_node(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        """Multimodal agent node implementation."""
+    async def _multimodal_agent_node(self, state: Dict[str, Any]) -> Dict[str, Any]:
+        """Multimodal agent node implementation using multimodal tools."""
         logger.info("Multimodal agent node called")
-        # TODO: Implement multimodal agent integration
-        return {
-            **state,
-            "agent_results": {
-                **state.get("agent_results", {}),
-                "multimodal": "Multimodal agent result placeholder"
+        
+        try:
+            # Import multimodal tools directly since there's no dedicated multimodal agent
+            from tools.multimodal_tools import (
+                imager_tool, image_vision_tool, images_search_tool, video_tool
+            )
+            from ai.multimodal_engine import MultimodalEngine
+            from models.models import get_google_model
+            
+            # Create a basic multimodal processor
+            model = get_google_model()
+            multimodal_engine = MultimodalEngine()
+            
+            # Process the request
+            user_request = state.get('user_request', '')
+            session_context = state.get('session_context', {})
+            
+            # Determine what type of multimodal processing is needed
+            request_lower = user_request.lower()
+            
+            if any(word in request_lower for word in ['image', 'picture', 'photo', 'visual', 'see']):
+                # Image-related request
+                if 'analyze' in request_lower or 'describe' in request_lower:
+                    # Use vision tool (requires image input)
+                    response = f"I can analyze images when provided. Please share an image to analyze: {user_request}"
+                elif 'search' in request_lower or 'find' in request_lower:
+                    # Use image search
+                    try:
+                        search_result = await images_search_tool.ainvoke({"query": user_request})
+                        response = f"Found images related to your request: {search_result}"
+                    except:
+                        response = f"I searched for images related to '{user_request}' but encountered an issue."
+                elif 'create' in request_lower or 'generate' in request_lower:
+                    # Use image generation
+                    try:
+                        generation_result = await imager_tool.ainvoke({"query": user_request})
+                        response = f"Generated image based on your request: {generation_result}"
+                    except:
+                        response = f"I attempted to generate an image for '{user_request}' but encountered an issue."
+                else:
+                    response = f"I can help with image analysis, search, and generation. {user_request}"
+            
+            elif any(word in request_lower for word in ['video', 'movie', 'film']):
+                # Video-related request
+                try:
+                    video_result = await video_tool.ainvoke({"query": user_request})
+                    response = f"Processed video request: {video_result}"
+                except:
+                    response = f"I processed your video request '{user_request}' but encountered an issue."
+            
+            else:
+                # General multimodal request
+                response = f"I can help with image analysis, generation, search, and video processing. For '{user_request}', please specify what type of multimodal assistance you need."
+            
+            return {
+                **state,
+                "agent_results": {
+                    **state.get("agent_results", {}),
+                    "multimodal": response
+                },
+                "active_agents": [agent for agent in state.get("active_agents", []) if agent != "multimodal"]
             }
-        }
+            
+        except Exception as e:
+            logger.error(f"Error in multimodal agent node: {e}")
+            return {
+                **state,
+                "agent_results": {
+                    **state.get("agent_results", {}),
+                    "multimodal": f"I encountered an error during multimodal processing: {str(e)}"
+                },
+                "active_agents": [agent for agent in state.get("active_agents", []) if agent != "multimodal"],
+                "error_messages": state.get("error_messages", []) + [f"Multimodal agent error: {str(e)}"]
+            }
     
     def _synthesizer_node(self, state: Dict[str, Any]) -> Dict[str, Any]:
         """Synthesizer node that aggregates results into final response."""

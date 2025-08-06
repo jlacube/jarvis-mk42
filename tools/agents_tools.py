@@ -1,6 +1,6 @@
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.tools import tool
-from langgraph.graph.graph import CompiledGraph
+from langgraph.graph.state import CompiledStateGraph
 
 from agents.coding_agent import get_coding_agent
 from agents.reasoning_agent import get_reasoning_agent
@@ -32,7 +32,7 @@ async def research_tool(query: str) -> str:
     Example:
         result = await research_tool("What are the latest developments in quantum computing?")
     """
-    agent:CompiledGraph = await get_research_agent()
+    agent:CompiledStateGraph = await get_research_agent()
     inputs = {"messages": [HumanMessage(content=query)]}
 
     res = await agent.ainvoke(input=inputs)
@@ -65,7 +65,7 @@ async def reasoning_tool(query: str) -> str:
     Example:
         result = await reasoning_tool("How should we approach designing a sustainable urban transportation system?")
     """
-    agent:CompiledGraph = await get_reasoning_agent()
+    agent:CompiledStateGraph = await get_reasoning_agent()
     inputs = {"messages": [HumanMessage(content=query)]}
 
     #res = await agent.ainvoke(input=inputs, config=RunnableConfig(callbacks=[ConsoleCallbackHandler(),cl.AsyncLangchainCallbackHandler()]), stream_mode="values")
@@ -107,7 +107,7 @@ async def coding_tool(query: str) -> str:
     Example:
         result = await coding_tool("Write a Python function to find prime numbers up to n")
     """
-    agent:CompiledGraph = await get_coding_agent()
+    agent:CompiledStateGraph = await get_coding_agent()
     inputs = {"messages": [HumanMessage(content=query)]}
 
     res = await agent.ainvoke(input=inputs)

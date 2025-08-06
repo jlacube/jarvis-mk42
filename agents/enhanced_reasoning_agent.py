@@ -25,7 +25,7 @@ from dataclasses import dataclass
 
 import chainlit as cl
 from langchain_core.prompts import PromptTemplate
-from langgraph.graph.graph import CompiledGraph
+from langgraph.graph.state import CompiledStateGraph
 from langgraph.prebuilt import create_react_agent
 
 # Import base agent and communication framework
