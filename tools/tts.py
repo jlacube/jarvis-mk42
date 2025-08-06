@@ -1,6 +1,8 @@
 import asyncio
 import logging
 
+logger = logging.getLogger(__name__)
+
 from elevenlabs import VoiceSettings
 from langchain_community.tools.eleven_labs import ElevenLabsText2SpeechTool
 from langchain.tools import tool
@@ -78,10 +80,10 @@ def get_audio_response(text: str) -> bytes:
 async def main():
     try:
         result = await generate_audio_response("Hello, this is a test of ElevenLabs text-to-speech.")
-        print(f"Audio generated")
+        logger.info("Audio generated successfully")
     except Exception as e:
-        logging.error(f"Error in main: {e}")
-        print(f"Error: {e}")
+        logger.error(f"Error in main: {e}")
+        logger.error(f"Audio generation failed: {e}")
 
 # To run the main function, you would typically use an async event loop.
 

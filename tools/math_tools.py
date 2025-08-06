@@ -171,15 +171,17 @@ async def calculator_tool(expression: str) -> str:
         logging.error(f"Unexpected error in calculator_tool: {type(e).__name__} - {e}")
         return f"An unexpected error occurred: {type(e).__name__} - {e}"
 
-# Example usage (for demonstration):
-# print(f"'1+2*3': {calculate('1+2*3')}")
-# print(f"'sin(pi/2)': {calculate('sin(pi/2)')}")
-# print(f"'diff(x**3, x)': {calculate('diff(x**3, x)')}")
-# print(f"'solve(Eq(x**2, 4), x)': {calculate('solve(Eq(x**2, 4), x)')}")
-# print(f"'nsolve(cos(x) - x, x, 1)': {calculate('nsolve(cos(x) - x, x, 1)')}")
-# print(f"'integrate(1/x, x)': {calculate('integrate(1/x, x)')}")
-# print(f"'N(E, 20)': {calculate('N(E, 20)')}")
-# print(f"'1/0': {calculate('1/0')}")
-# print(f"'invalid_syntax***': {calculate('invalid_syntax***')}")
-# print(f"'Matrix([[1, 2], [3, 4]])**2': {calculate('Matrix([[1, 2], [3, 4]])**2')}")
-# print(f"'solve(Eq(exp(x), 0), x)': {calculate('solve(Eq(exp(x), 0), x)')}") # Expected: []
+# Example usage - uncomment for testing:
+# if __name__ == "__main__":
+#     test_cases = [
+#         "1+2*3",
+#         "sin(pi/2)",
+#         "diff(x**3, x)",
+#         "solve(Eq(x**2, 4), x)",
+#         "nsolve(cos(x) - x, x, 1)",
+#         "integrate(1/x, x)",
+#         "N(E, 20)",
+#         "Matrix([[1, 2], [3, 4]])**2"
+#     ]
+#     for case in test_cases:
+#         print(f"'{case}': {calculate(case)}")

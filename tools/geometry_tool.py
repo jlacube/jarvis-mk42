@@ -10,6 +10,8 @@ from langchain.prompts import ChatPromptTemplate
 from typing import Dict, Any
 import logging
 
+logger = logging.getLogger(__name__)
+
 from models.models import get_google_model
 
 # Initialize LLM (replace with your actual model and API key)
@@ -27,8 +29,8 @@ def generate_geometry(description: str, visualization_backend: str = 'matplotlib
     Returns:
         Dict[str, Any]: A dictionary containing the status, message, Shapely geometry object, and plot data as an io.BytesIO object.
     """
-    print(f"Received description: {description}")
-    print(f"Visualization backend: {visualization_backend}")
+    logger.debug(f"Received description: {description}")
+    logger.debug(f"Visualization backend: {visualization_backend}")
 
     if visualization_backend not in ['matplotlib', 'plotly']:
         return {'status': 'failure', 'message': f'Invalid visualization backend: {visualization_backend}. Must be "matplotlib" or "plotly".', 'geometry_object': None, 'plot_data': None}
@@ -42,7 +44,7 @@ def generate_geometry(description: str, visualization_backend: str = 'matplotlib
         )
         intent_prompt = intent_prompt_template.format_messages(user_input=description)
         intent = llm.invoke(intent_prompt).content.strip()
-        print(f"LLM Intent: {intent}")
+        logger.debug(f"LLM Intent: {intent}")
     except Exception as e:
         logging.error(f"Error during intent detection: {e}")
         return {'status': 'failure', 'message': f'Failed to detect intent: {e}', 'geometry_object': None, 'plot_data': None}
