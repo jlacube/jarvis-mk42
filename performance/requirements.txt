@@ -1,0 +1,32 @@
+# JARVIS-MK42 Performance Module Requirements
+# ==========================================
+#
+# This file lists optional dependencies that can enhance the performance module.
+# All components are designed to work without external dependencies, but these
+# packages can provide additional functionality and better system monitoring.
+
+# Optional: Enhanced system monitoring (used in ai_models.py)
+# Provides detailed CPU, memory, disk, and network statistics
+# If not available, basic system monitoring will use built-in tools
+psutil>=5.8.0
+
+# Optional: Better date/time handling (if needed for advanced analytics)
+# python-dateutil>=2.8.0
+
+# Optional: Enhanced JSON handling for large metrics datasets
+# orjson>=3.6.0
+
+# Optional: Scientific computing for advanced trend analysis
+# numpy>=1.20.0
+# scipy>=1.6.0
+
+# Optional: Database enhancements for analytics
+# sqlite3 is built into Python, but these can provide performance improvements:
+# sqlite-utils>=3.0.0
+
+# Optional: Web framework for performance dashboard (future enhancement)
+# fastapi>=0.68.0
+# uvicorn>=0.15.0
+
+# Note: The performance module is designed to gracefully handle missing optional
+# dependencies and will fall back to built-in Python functionality.
