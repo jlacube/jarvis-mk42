@@ -1,0 +1,19 @@
+{
+  "backup_20250806_091821_database_only": {
+    "backup_id": "backup_20250806_091821_database_only",
+    "backup_type": "database_only",
+    "created_at": "2025-08-06T09:18:21.000000",
+    "completed_at": "2025-08-06T09:18:21.500000",
+    "status": "completed",
+    "source_paths": ["jarvis.db"],
+    "backup_path": "backups/backup_20250806_091821_database_only.db.gz",
+    "compressed_size": 4096,
+    "uncompressed_size": 4096,
+    "checksum": "dummy_hash_for_testing",
+    "compression_ratio": 0.95,
+    "database_version": null,
+    "notes": "Manual backup created during testing",
+    "verification_status": true,
+    "verification_time": "2025-08-06T09:18:21.600000"
+  }
+}

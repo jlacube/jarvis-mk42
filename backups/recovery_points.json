@@ -1,0 +1,9 @@
+[
+  {
+    "timestamp": "2025-08-06T09:18:21.254157",
+    "backup_id": "backup_20250806_091821_database_only",
+    "database_size": 4096,
+    "transaction_count": 0,
+    "description": "Auto-generated recovery point for backup_20250806_091821_database_only"
+  }
+]
