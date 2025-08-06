@@ -2,12 +2,12 @@
   "summary": {
     "components_optimized": 4,
     "total_memory_before_mb": 550.8000000000001,
-    "total_memory_after_mb": 551.6125000000001,
-    "total_memory_saved_mb": -0.8125,
-    "avg_memory_reduction_percent": -0.14818870302128156,
+    "total_memory_after_mb": 551.6164062500001,
+    "total_memory_saved_mb": -0.81640625,
+    "avg_memory_reduction_percent": -0.14890465793330504,
     "total_cpu_before_percent": 398.6,
-    "total_cpu_after_percent": 275.988,
-    "avg_cpu_reduction_percent": 30.899999999999995,
+    "total_cpu_after_percent": 292.988,
+    "avg_cpu_reduction_percent": 26.64999999999999,
     "optimization_success": false
   },
   "component_results": {
@@ -16,8 +16,8 @@
       "memory_after_mb": 146.0625,
       "memory_reduction_percent": -0.04280821917808219,
       "cpu_before_percent": 100.0,
-      "cpu_after_percent": 199.4,
-      "cpu_reduction_percent": -99.4,
+      "cpu_after_percent": 216.4,
+      "cpu_reduction_percent": -116.40000000000002,
       "optimizations_applied": [
         "Garbage collection and cache clearing"
       ],
@@ -39,8 +39,8 @@
     },
     "adaptive_learning": {
       "memory_before_mb": 136.4,
-      "memory_after_mb": 137.14609375,
-      "memory_reduction_percent": -0.5469895527859236,
+      "memory_after_mb": 137.15,
+      "memory_reduction_percent": -0.5498533724340176,
       "cpu_before_percent": 100.0,
       "cpu_after_percent": 25.0,
       "cpu_reduction_percent": 75.0,
