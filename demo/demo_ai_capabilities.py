@@ -16,7 +16,7 @@ import os
 from datetime import datetime
 from typing import Dict, Any
 
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 async def demo_cognitive_models():
     """Demonstrate cognitive models capabilities"""

@@ -5,7 +5,7 @@ Simple test to verify AI module imports and basic functionality
 
 import sys
 import os
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 def test_imports():
     """Test that AI modules can be imported"""
