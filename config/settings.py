@@ -7,6 +7,8 @@ from pathlib import Path
 
 class DatabaseSettings(BaseSettings):
     """Database configuration settings"""
+    model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "allow"}
+    
     url: str = Field("sqlite:///jarvis.db", env="DATABASE_URL")
     echo: bool = Field(False, env="DATABASE_ECHO")
     pool_size: int = Field(5, env="DATABASE_POOL_SIZE")
@@ -14,6 +16,8 @@ class DatabaseSettings(BaseSettings):
 
 class RedisSettings(BaseSettings):
     """Redis configuration settings"""
+    model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "allow"}
+    
     url: str = Field("redis://localhost:6379", env="REDIS_URL")
     password: Optional[str] = Field(None, env="REDIS_PASSWORD")
     db: int = Field(0, env="REDIS_DB")
@@ -21,6 +25,8 @@ class RedisSettings(BaseSettings):
 
 class ModelSettings(BaseSettings):
     """AI Model configuration settings"""
+    model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "allow"}
+    
     default_temperature: float = Field(0.0, env="MODEL_TEMPERATURE")
     default_max_tokens: int = Field(8192, env="MODEL_MAX_TOKENS")
     streaming: bool = Field(False, env="MODEL_STREAMING")
@@ -28,6 +34,8 @@ class ModelSettings(BaseSettings):
 
 class APISettings(BaseSettings):
     """External API configuration settings"""
+    model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "allow"}
+    
     openai_api_key: Optional[str] = Field(None, env="OPENAI_API_KEY")
     google_api_key: Optional[str] = Field(None, env="GOOGLE_API_KEY")
     anthropic_api_key: Optional[str] = Field(None, env="ANTHROPIC_API_KEY")
@@ -38,12 +46,16 @@ class APISettings(BaseSettings):
 
 class AudioSettings(BaseSettings):
     """Audio processing configuration settings"""
+    model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "allow"}
+    
     mpv_installed: bool = Field(False, env="MPV_INSTALLED")
     default_language: str = Field("en", env="DEFAULT_LANGUAGE")
     audio_timeout: int = Field(30, env="AUDIO_TIMEOUT")
 
 class SecuritySettings(BaseSettings):
     """Security and authentication settings"""
+    model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "allow"}
+    
     secret_key: str = Field("default-secret-key", env="SECRET_KEY")  # Make optional with default
     allowed_users: str = Field("admin", env="ALLOWED_USERS")  # Store as string, parse in property
     enforce_users: bool = Field(True, env="ENFORCE_USERS")
@@ -59,6 +71,8 @@ class SecuritySettings(BaseSettings):
 
 class LoggingSettings(BaseSettings):
     """Logging configuration settings"""
+    model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "allow"}
+    
     level: str = Field("INFO", env="LOG_LEVEL")
     format: str = Field("%(asctime)s - %(name)s - %(levelname)s - %(message)s", env="LOG_FORMAT")
     file_path: Optional[str] = Field("app.log", env="LOG_FILE_PATH")
@@ -67,6 +81,8 @@ class LoggingSettings(BaseSettings):
 
 class ApplicationSettings(BaseSettings):
     """General application settings"""
+    model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "allow"}
+    
     debug: bool = Field(False, env="DEBUG")
     environment: str = Field("production", env="ENVIRONMENT")
     host: str = Field("0.0.0.0", env="HOST")

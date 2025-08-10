@@ -78,7 +78,7 @@ async def imager_tool(query: str) -> str:
         
         # Check API key
         if not settings.google_api_key:
-            raise JarvisAPIError("GOOGLE_API_KEY not configured")
+            raise JarvisAPIError("GOOGLE_API_KEY not configured", service="google_genai")
         
         logger.info(f"Generating image for prompt: {query[:50]}{'...' if len(query) > 50 else ''}")
         
@@ -153,7 +153,7 @@ async def video_tool(query: str) -> str:
         
         # Check API key
         if not settings.google_api_key:
-            raise JarvisAPIError("GOOGLE_API_KEY not configured")
+            raise JarvisAPIError("GOOGLE_API_KEY not configured", service="google_genai")
         
         logger.info(f"Generating video for prompt: {query[:50]}{'...' if len(query) > 50 else ''}")
         
@@ -241,7 +241,7 @@ async def vocalizer_tool(query: str) -> str:
         
         # Check API key
         if not settings.elevenlabs_api_key:
-            raise JarvisAPIError("ELEVENLABS_API_KEY not configured")
+            raise JarvisAPIError("ELEVENLABS_API_KEY not configured", service="elevenlabs")
         
         logger.info(f"Generating audio for text: {query[:50]}{'...' if len(query) > 50 else ''}")
         
@@ -276,8 +276,13 @@ class BoundingBox(BaseModel):
             raise ValueError('Bounding box coordinates must be between 0 and 1000')
         return v
 
-VISION_INSTRUCTIONS = """Return bounding boxes as an array with labels. Never return masks. Limit to 25 objects.
-If an object is present multiple times, give each object a unique label according to its distinct characteristics (colors, size, position, etc..)."""
+class VisionAnalysisResponse(BaseModel):
+    """Response model for vision analysis containing a list of bounding boxes"""
+    bounding_boxes: List[BoundingBox]
+
+VISION_INSTRUCTIONS = """Return bounding boxes as an array with labels in the 'bounding_boxes' field. Never return masks. Limit to 25 objects.
+If an object is present multiple times, give each object a unique label according to its distinct characteristics (colors, size, position, etc..).
+The response should be a JSON object with a 'bounding_boxes' field containing an array of objects, each with 'box_2d' (array of 4 integers) and 'label' (string) fields."""
 
 
 async def plot_bounding_boxes(image_bytes: bytes, bounding_boxes: List[BoundingBox]) -> io.BytesIO:
@@ -394,7 +399,7 @@ async def imager_vision_tool(query: str) -> str:
         
         # Check API key
         if not settings.google_api_key:
-            raise JarvisAPIError("GOOGLE_API_KEY not configured")
+            raise JarvisAPIError("GOOGLE_API_KEY not configured", service="google_genai")
         
         # Get images from session
         images: List[cl.ImageElement] = cl.user_session.get("images")
@@ -417,21 +422,24 @@ async def imager_vision_tool(query: str) -> str:
                 system_instruction=VISION_INSTRUCTIONS,
                 temperature=0.5,
                 response_mime_type="application/json",
-                response_schema=List[BoundingBox]
+                response_schema=VisionAnalysisResponse
             ),
         )
+
+        # Extract bounding boxes from the parsed response
+        bounding_boxes = response.parsed.bounding_boxes if response.parsed else []
 
         cl_images = []
         for image in images:
             img_data: io.BytesIO = await plot_bounding_boxes(
                 image_bytes=image.content, 
-                bounding_boxes=response.parsed
+                bounding_boxes=bounding_boxes
             )
             cl_images.append(cl.Image(name="img", content=img_data.getvalue()))
 
-        await cl.Message(content=str(response.parsed), elements=cl_images).send()
+        await cl.Message(content=str(bounding_boxes), elements=cl_images).send()
 
-        logger.info(f"Vision analysis completed, found {len(response.parsed)} objects")
+        logger.info(f"Vision analysis completed, found {len(bounding_boxes)} objects")
         return "The processing was done successfully and the response was sent to the user"
         
     except JarvisValidationError:

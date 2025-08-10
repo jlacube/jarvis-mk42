@@ -262,7 +262,7 @@ async def assess_source_credibility(
 async def verify_fact_claim(
     claim: str, 
     max_sources: int = 5,
-    languages: List[str] = None
+    languages: Optional[List[str]] = None
 ) -> Dict[str, Any]:
     """
     Verify a factual claim by cross-referencing multiple sources.
@@ -419,7 +419,7 @@ async def domain_specific_research(
     query: str,
     domain: str = "general",
     max_results: int = 10,
-    include_languages: List[str] = None
+    include_languages: Optional[List[str]] = None
 ) -> Dict[str, Any]:
     """
     Perform domain-specific research with specialized strategies.
@@ -590,7 +590,7 @@ async def domain_specific_research(
 @tool
 async def multi_language_research(
     query: str,
-    target_languages: List[str] = None,
+    target_languages: Optional[List[str]] = None,
     max_results_per_language: int = 5
 ) -> Dict[str, Any]:
     """

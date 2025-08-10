@@ -1,11 +1,14 @@
 # chainlit_setup.py
 import datetime
+import json
 import logging
 import uuid
 
 import chainlit as cl
 from chainlit.config import ThreadDict
+from chainlit.data.sql_alchemy import SQLAlchemyDataLayer
 from langchain_core.messages import HumanMessage, AIMessage
+from sqlalchemy import create_engine
 from typing import List, Optional
 
 from agent_management import initialize_agent
@@ -14,6 +17,37 @@ from utils.logging_config import get_logger
 from utils.exceptions import SessionError
 
 logger = get_logger(__name__)
+
+
+def serialize_json(obj):
+    """
+    Custom JSON serializer that handles Python objects including lists.
+    This fixes SQLite parameter binding errors for list types.
+    """
+    return json.dumps(obj, default=str, ensure_ascii=False)
+
+
+def deserialize_json(obj):
+    """
+    Custom JSON deserializer that handles JSON strings back to Python objects.
+    """
+    if obj is None:
+        return None
+    try:
+        return json.loads(obj)
+    except (json.JSONDecodeError, TypeError):
+        return obj
+
+
+@cl.data_layer
+def get_data_layer():
+    """
+    Configure Chainlit to use SQLAlchemy with async SQLite for data persistence.
+    This resolves PostgreSQL connection errors by using a local SQLite database.
+    """
+    return SQLAlchemyDataLayer(
+        conninfo="sqlite+aiosqlite:///./chainlit.db"
+    )
 
 
 async def init_chainlit():
@@ -41,7 +75,7 @@ async def init_chainlit():
         session_id = str(uuid.uuid4()) if cl.context.session.id is None else cl.context.session.id
 
         if cl.context.session.user is not None:
-            user_id = str(uuid.uuid4()) if cl.context.session.user is None else cl.context.session.user.id
+            user_id = cl.context.session.user.identifier if cl.context.session.user.identifier else str(uuid.uuid4())
             user_name = "" if cl.context.session.user.identifier is None else cl.context.session.user.identifier
         else:
             user_id = str(uuid.uuid4())

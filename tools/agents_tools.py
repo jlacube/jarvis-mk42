@@ -117,6 +117,16 @@ async def coding_tool(query: str) -> str:
     if len(messages) > 2:
         for msg in messages[1:-1]:
             if isinstance(msg, AIMessage):
-                await cl.Message(author="Coding Agent", content="\n".join(msg.content)).send()
+                # Handle both string and list content types
+                if isinstance(msg.content, list):
+                    content = "\n".join(str(item) for item in msg.content)
+                else:
+                    content = str(msg.content)
+                await cl.Message(author="Coding Agent", content=content).send()
 
-    return "\n".join(messages[-1].content)
+    # Return the final message content as a string
+    final_content = messages[-1].content
+    if isinstance(final_content, list):
+        return "\n".join(str(item) for item in final_content)
+    else:
+        return str(final_content)

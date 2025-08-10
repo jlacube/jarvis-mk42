@@ -6,7 +6,7 @@ from urllib.parse import urlparse
 import requests
 from chainlit import make_async, Video
 from duckduckgo_search import DDGS
-from google import generativeai as genai
+from google import genai
 from langchain_core.tools import tool, Tool
 from langchain_community.utilities import GoogleSerperAPIWrapper
 from pydantic import SecretStr, validator
@@ -112,7 +112,7 @@ async def google_search_tool(query: str, max_results: int = 10) -> dict:
         
         # Check API key
         if not settings.serper_api_key:
-            raise JarvisAPIError("SERPER_API_KEY not configured")
+            raise JarvisAPIError("SERPER_API_KEY not configured", service="google_search")
         
         logger.info(f"Performing Google search for: {query[:50]}{'...' if len(query) > 50 else ''}")
         
@@ -174,7 +174,7 @@ async def images_search_tool(query: str, max_results: int = 10) -> dict:
         
         # Check API key
         if not settings.serper_api_key:
-            raise JarvisAPIError("SERPER_API_KEY not configured")
+            raise JarvisAPIError("SERPER_API_KEY not configured", service="image_search")
         
         logger.info(f"Performing image search for: {query[:50]}{'...' if len(query) > 50 else ''}")
         
@@ -258,7 +258,7 @@ async def videos_search_tool(query: str, max_results: int = 10) -> dict:
         
         # Check API key
         if not settings.serper_api_key:
-            raise JarvisAPIError("SERPER_API_KEY not configured")
+            raise JarvisAPIError("SERPER_API_KEY not configured", service="video_search")
         
         logger.info(f"Performing video search for: {query[:50]}{'...' if len(query) > 50 else ''}")
         
@@ -381,13 +381,13 @@ def perplexity_ai(query: str, max_results: int) -> str:
         return result['choices'][-1]['message']['content']
     except requests.exceptions.RequestException as e:
         logger.error(f"Perplexity API request failed: {e}")
-        raise JarvisAPIError(f"Perplexity AI request failed: {e}")
+        raise JarvisAPIError(f"Perplexity AI request failed: {e}", service="perplexity")
     except (KeyError, IndexError) as e:
         logger.error(f"Perplexity API response format error: {e}")
-        raise JarvisAPIError(f"Perplexity AI response format error: {e}")
+        raise JarvisAPIError(f"Perplexity AI response format error: {e}", service="perplexity")
     except Exception as e:
         logger.error(f"Perplexity AI error: {e}")
-        raise JarvisAPIError(f"Perplexity AI error: {e}")
+        raise JarvisAPIError(f"Perplexity AI error: {e}", service="perplexity")
 
 
 async_perplexity_ai = make_async(perplexity_ai)
@@ -416,7 +416,7 @@ async def advanced_research_tool(query: str, max_results: int = 10) -> str:
         
         # Check API key
         if not settings.perplexity_api_key:
-            raise JarvisAPIError("PERPLEXITY_API_KEY not configured")
+            raise JarvisAPIError("PERPLEXITY_API_KEY not configured", service="perplexity")
         
         logger.info(f"Performing advanced research for: {query[:50]}{'...' if len(query) > 50 else ''}")
         
@@ -479,7 +479,7 @@ def fetch_url_content(url: str) -> str:
         
     except requests.exceptions.RequestException as e:
         logger.error(f"Error fetching URL '{url}': {e}")
-        raise JarvisAPIError(f"Error fetching URL '{url}': {e}")
+        raise JarvisAPIError(f"Error fetching URL '{url}': {e}", service="webpage_research")
     except Exception as e:
         logger.error(f"Error processing URL '{url}': {e}")
         raise JarvisToolError(f"Error processing URL '{url}': {e}")

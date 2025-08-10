@@ -1,13 +1,12 @@
 # message_processing.py
 import logging
 import os
-from typing import Any
+from typing import Any, Dict
 from datetime import datetime
 
 from langchain_core.messages import HumanMessage, AIMessageChunk, SystemMessage
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tracers import ConsoleCallbackHandler
-from langgraph.pregel.io import AddableValuesDict
 import chainlit as cl
 
 # Import from new configuration system
@@ -35,13 +34,13 @@ async def process_standard_output(res: Any, from_audio: bool = False):
     
     Args:
         res (Any): The response from the agent, which can be:
-                  - AddableValuesDict: Contains messages to be processed
+                  - Dict: Contains messages to be processed
                   - Stream: Contains chunks to be processed incrementally
         from_audio (bool, optional): Whether the original input was from audio.
                                     Defaults to False.
     
     Implementation Details:
-        - For AddableValuesDict, the function extracts and formats the message content
+        - For dictionary responses, the function extracts and formats the message content
         - For streaming responses, it processes chunks incrementally
         - Handles cases where message content might be a list or string
         
@@ -51,7 +50,7 @@ async def process_standard_output(res: Any, from_audio: bool = False):
     try:
         msg: cl.Message
         full_text_response = ""
-        if isinstance(res, AddableValuesDict):
+        if isinstance(res, dict) and "messages" in res:
             text = res["messages"][-1].content
             if isinstance(text, list):
                 chunks = []
@@ -172,6 +171,61 @@ def extract_images_from_message(msg: cl.Message):
 
     return images
 
+def extract_documents_from_message(msg: cl.Message):
+    """
+    Extracts and processes document attachments from a Chainlit message.
+    
+    This function identifies any document files attached to a message, reads their
+    binary content, and prepares them for processing by the document intelligence tools.
+    
+    Args:
+        msg (cl.Message): The message object potentially containing document attachments
+        
+    Returns:
+        list: A list of processed document objects with their content loaded,
+              ready for analysis by document intelligence tools
+              
+    Processing Details:
+        - Filters message elements to only include documents (PDF, Word, text files, etc.)
+        - Reads each document file's binary content and attaches it to the file object
+        - Handles errors gracefully with appropriate logging
+        
+    Error Handling:
+        - FileNotFoundError: When a document file path is invalid
+        - General exceptions: For any other document processing errors
+    """
+    documents = []
+
+    if msg.elements is None:
+        return documents
+
+    # Processing documents exclusively - support common document types
+    document_mime_types = [
+        "application/pdf",
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "text/plain",
+        "text/markdown",
+        "application/rtf",
+        "application/vnd.oasis.opendocument.text"
+    ]
+    
+    document_files = [file for file in msg.elements 
+                     if any(mime_type in file.mime for mime_type in document_mime_types)]
+
+    for document_file in document_files:
+        # Read the document
+        try:
+            with open(document_file.path, "rb") as f:
+                document_file.content = f.read()
+            documents.append(document_file)
+        except FileNotFoundError:
+            logger.error(f"Document file not found at path: {document_file.path}")
+        except Exception as e:
+            logger.error(f"Error reading document file {document_file.path}: {e}", exc_info=True)
+
+    return documents
+
 @cl.on_message
 async def on_message(message: cl.Message):
     """
@@ -226,6 +280,10 @@ async def on_message(message: cl.Message):
         images = extract_images_from_message(message)
         if images:
             cl.user_session.set("images", images)
+            
+        documents = extract_documents_from_message(message)
+        if documents:
+            cl.user_session.set("documents", documents)
 
         # Import here to avoid circular dependency
         from chainlit_setup import init_chainlit
@@ -286,7 +344,7 @@ async def on_message(message: cl.Message):
 
 
         # Store the AI response in the session history as well
-        if isinstance(res, AddableValuesDict) and "messages" in res:
+        if isinstance(res, dict) and "messages" in res:
              ai_response_message = res["messages"][-1] # Assuming the last message is the AI response
              updated_messages = cl.user_session.get("previous_messages")
              if updated_messages:

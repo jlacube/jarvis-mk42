@@ -7,6 +7,90 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 if current_dir not in sys.path:
     sys.path.insert(0, current_dir)
 
+# PATCH: Ensure Annotated is available globally to fix LangChain/LangGraph compatibility issues
+try:
+    from typing import Annotated
+except ImportError:
+    from typing_extensions import Annotated
+
+# Make Annotated available globally for any module that might need it
+import builtins
+builtins.Annotated = Annotated
+
+# Also ensure it's available in typing modules
+import typing
+if not hasattr(typing, 'Annotated'):
+    typing.Annotated = Annotated
+
+try:
+    import typing_extensions
+    if not hasattr(typing_extensions, 'Annotated'):
+        typing_extensions.Annotated = Annotated
+except ImportError:
+    pass
+
+# PATCH: Ensure Optional is available globally to fix LangChain tool validation issues
+try:
+    from typing import Optional
+    builtins.Optional = Optional
+except ImportError:
+    # Create a minimal Optional fallback if import fails
+    from typing import Union
+    def Optional(tp):
+        return Union[tp, None]
+    builtins.Optional = Optional
+
+# PATCH: Ensure Callable is available globally to fix type annotation issues
+try:
+    from typing import Callable
+    builtins.Callable = Callable
+except ImportError:
+    # Create a minimal Callable fallback if import fails
+    from typing import Any
+    Callable = Any
+    builtins.Callable = Callable
+
+# PATCH: Ensure Any is available globally to fix type annotation issues
+try:
+    from typing import Any
+    builtins.Any = Any
+except ImportError:
+    # Create a minimal Any fallback if import fails
+    class Any:
+        pass
+    builtins.Any = Any
+
+# PATCH: Ensure ArgsSchema is available globally to fix LangChain tool validation issues  
+try:
+    from langchain_core.tools.base import ArgsSchema
+    builtins.ArgsSchema = ArgsSchema
+except ImportError:
+    # Create a minimal ArgsSchema fallback if import fails
+    from pydantic import BaseModel
+    class ArgsSchema(BaseModel):
+        pass
+    builtins.ArgsSchema = ArgsSchema
+
+# PATCH: Ensure SkipValidation is available globally to fix Pydantic validation issues
+try:
+    from pydantic import SkipValidation
+    builtins.SkipValidation = SkipValidation
+except ImportError:
+    # Create a minimal SkipValidation fallback if import fails
+    from typing import Any
+    SkipValidation = Any
+    builtins.SkipValidation = SkipValidation
+
+# PATCH: Ensure Awaitable is available globally to fix async type annotation issues
+try:
+    from typing import Awaitable
+    builtins.Awaitable = Awaitable
+except ImportError:
+    # Create a minimal Awaitable fallback if import fails
+    from typing import Any
+    Awaitable = Any
+    builtins.Awaitable = Awaitable
+
 # Initialize configuration and logging as early as possible
 try:
     from config.settings import get_settings, validate_settings

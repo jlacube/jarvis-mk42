@@ -21,7 +21,7 @@ boto3~=1.37.30
 langchain-openai~=0.3.12
 langchain-anthropic~=0.3.10
 langchain-google-genai~=2.1.2
-langchain-mistralai~=0.5.2
+langchain-mistralai
 bcrypt~=4.3.0
 chardet~=5.2.0
 sympy~=1.13.3
@@ -47,3 +47,6 @@ xlrd~=2.0.1
 # Phase 3A: Production Deployment
 flask~=3.1.0
 psutil~=6.1.1
+
+# Database drivers for async operations
+aiosqlite~=0.21.0

@@ -8,7 +8,7 @@ from models.models import get_openai_model, get_google_model, get_google_reasoni
 from prompts import get_prompt
 from tools.file_tools import list_jarvis_files, read_file_content
 from tools.reasoning_model_tool import reasoning_model_tool
-from tools.reasoning_tools import sequential_thinking_tool, generate_summary, clear_history
+from tools.reasoning_tools import generate_summary, clear_history, sequential_thinking_tool
 from tools.research_tools import get_research_tools
 
 import chainlit as cl
@@ -18,25 +18,35 @@ async def get_coding_agent() -> CompiledStateGraph:
     agent_name = "Coding_Agent"  # Define the agent name
     allowed_tools = get_allowed_tools_from_env(agent_name)  # Get allowed tools from .env
 
-    # Filter the explicitly listed tools based on allowed_tools
-    explicitly_listed_tools = [list_jarvis_files, read_file_content, sequential_thinking_tool, generate_summary, clear_history, reasoning_model_tool]
+    # Filter the explicitly listed tools based on allowed_tools (restored full functionality)
+    explicitly_listed_tools = [list_jarvis_files, read_file_content, generate_summary, clear_history, reasoning_model_tool, sequential_thinking_tool]
     filtered_explicitly_listed_tools = [tool for tool in explicitly_listed_tools if tool.name in (allowed_tools or [])]
 
-    # Get research tools and filter them based on allowed_tools
+    # Get research tools and filter them based on allowed_tools (restored research tools)
     research_tools = get_research_tools()
     filtered_research_tools = [tool for tool in research_tools if tool.name in (allowed_tools or [])]
 
-    # Combine the filtered tools
+    # Combine the filtered tools (full functionality restored)
     tools = filtered_explicitly_listed_tools + filtered_research_tools
 
     prompt_template = PromptTemplate(template=get_prompt("coding_agent"),
                                      input_variables=["now", "user_id", "session_id", "user_name", "thread_id"])
 
-    now = cl.user_session.get("now")
-    user_id = cl.user_session.get("user_id")
-    session_id = cl.user_session.get("session_id")
-    user_name = cl.user_session.get("user_name")
-    thread_id = cl.user_session.get("thread_id")
+    # Try to get Chainlit user session data, fallback to defaults if not available
+    try:
+        now = cl.user_session.get("now", "Unknown time")
+        user_id = cl.user_session.get("user_id", "unknown_user")
+        session_id = cl.user_session.get("session_id", "unknown_session")
+        user_name = cl.user_session.get("user_name", "Unknown User")
+        thread_id = cl.user_session.get("thread_id", "unknown_thread")
+    except Exception:
+        # Fallback values when Chainlit context is not available
+        from datetime import datetime
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        user_id = "test_user"
+        session_id = "test_session"
+        user_name = "Test User"
+        thread_id = "test_thread"
 
     prompt = prompt_template.invoke(input=dict([
         ("now", now),

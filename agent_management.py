@@ -5,7 +5,7 @@ import os
 import pkgutil
 import inspect
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Any
 
 import chainlit as cl
 from langchain_core.tools import BaseTool
@@ -123,7 +123,7 @@ def get_all_tools(allowed_tools: Optional[List[str]], user_name: str) -> List[Ba
     return tools
 
 
-async def create_agent(prompt: str, user_name: str = "", agent_name: str = None) -> any:
+async def create_agent(prompt: str, user_name: str = "", agent_name: str = None) -> Any:
     """
     Creates an agent with the specified prompt and tools.
     

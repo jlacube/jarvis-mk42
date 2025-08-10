@@ -1,6 +1,7 @@
 import os
-from typing import Any, Coroutine, List, Dict
+from typing import Any, Coroutine, List, Dict, Optional
 from pathlib import Path
+import fnmatch
 
 from langchain_core.tools import tool
 from utils.exceptions import ValidationError, ToolError
@@ -10,21 +11,29 @@ from config.settings import get_settings
 
 logger = get_logger(__name__)
 
-@log_async_function_call
 @tool
-async def list_jarvis_files() -> List[str]:
+async def list_jarvis_files(pattern: str = "*", directory: str = "") -> List[str]:
     """
-    Lists all files in Jarvis directory and its subdirectories.
+    Lists all files in Jarvis directory and its subdirectories, optionally filtered by pattern and/or directory.
     
     This tool scans the base directory and returns all file paths, excluding hidden files 
-    and directories (those starting with a dot).
+    and directories (those starting with a dot). Can filter results by file pattern and/or specific directory.
+    
+    Args:
+        pattern (str): Optional glob pattern to filter files. Defaults to "*" (all files).
+                      Examples: "*.py" for Python files, "*.js" for JavaScript files, "test_*" for test files.
+        directory (str): Optional directory path to search within. Examples: "tools", "tests", "agents".
+                        If empty, searches the entire project. Use relative paths from project root.
     
     Returns:
         List[str]: A list of strings, where each string is the full path to a file.
                    Returns an empty list if the directory doesn't exist or is not a directory.
               
-    Example:
-        The output might look like: ["./app.py", "./tools/file_tools.py", ...]
+    Examples:
+        - All files: list_jarvis_files()
+        - All Python files: list_jarvis_files("*.py")
+        - Python files in tools directory: list_jarvis_files("*.py", "tools")
+        - All files in tests directory: list_jarvis_files("*", "tests")
         
     Security:
         - Only lists files within the project directory
@@ -34,21 +43,53 @@ async def list_jarvis_files() -> List[str]:
     try:
         settings = get_settings()
         base_directory = str(settings.project_root)
-        return list_files_recursive(base_directory)
+        
+        # If directory specified, append it to base directory
+        if directory:
+            # Normalize the directory path
+            directory = directory.strip().replace('\\', '/').strip('/')
+            search_directory = os.path.join(base_directory, directory)
+            
+            # Validate the directory exists
+            if not os.path.exists(search_directory) or not os.path.isdir(search_directory):
+                logger.warning(f"Directory '{directory}' not found in project")
+                return []
+        else:
+            search_directory = base_directory
+            
+        files = list_files_recursive(search_directory, pattern)
+        
+        # If no directory filter specified, return all files
+        if not directory:
+            return files
+            
+        # Filter files to only include those in the specified directory
+        directory_filter = os.path.join(base_directory, directory).replace('\\', '/')
+        filtered_files = []
+        
+        for file_path in files:
+            # Normalize file path for comparison
+            normalized_path = file_path.replace('\\', '/')
+            if directory_filter.replace('\\', '/') in normalized_path:
+                filtered_files.append(file_path)
+                
+        return filtered_files
+        
     except Exception as e:
         logger.error(f"Error listing files: {e}")
         raise ToolError(f"Failed to list files: {str(e)}")
 
 
-def list_files_recursive(directory: str) -> List[str]:
+def list_files_recursive(directory: str, pattern: str = "*") -> List[str]:
     """
-    Lists all files in the given directory and its subdirectories.
+    Lists all files in the given directory and its subdirectories, optionally filtered by pattern.
     
     This helper function performs the actual recursive directory traversal,
     filtering out hidden files and directories, and excludes sensitive directories.
     
     Args:
         directory (str): The path to the directory to scan.
+        pattern (str): Optional glob pattern to filter files. Defaults to "*" (all files).
         
     Returns:
         List[str]: A list of strings, where each string is the full path to a file.
@@ -92,6 +133,10 @@ def list_files_recursive(directory: str) -> List[str]:
                 if any(pattern in filename.lower() for pattern in excluded_patterns):
                     continue
                 
+                # Apply pattern filtering
+                if pattern != "*" and not fnmatch.fnmatch(filename, pattern):
+                    continue
+                
                 # Add file to list
                 file_path = os.path.join(root, filename)
                 file_paths.append(file_path)
@@ -112,7 +157,6 @@ def list_files_recursive(directory: str) -> List[str]:
     return file_paths
 
 
-@log_async_function_call
 @tool
 async def read_file_content(filepath: str) -> str:
     """
@@ -191,7 +235,6 @@ async def read_file_content(filepath: str) -> str:
         raise ToolError(f"Failed to read file '{filepath}': {str(e)}")
 
 
-@log_async_function_call
 @tool
 async def write_file_tool(
     filename: str,
@@ -276,10 +319,45 @@ async def write_file_tool(
         return {"status": "error", "message": f"Failed to write file '{filename}': {str(e)}"}
 
 
+@tool 
+async def find_files_in_directory(directory: str, file_extension: str = "py") -> List[str]:
+    """
+    Find files with a specific extension in a given directory.
+    
+    This is a simplified tool specifically for finding files by extension in a specific directory.
+    Perfect for tasks like "find all Python files in the tools directory".
+    
+    Args:
+        directory (str): Directory to search in (e.g., "tools", "tests", "agents")
+        file_extension (str): File extension to search for (without dot). Defaults to "py".
+                             Examples: "py", "js", "md", "txt", "json"
+    
+    Returns:
+        List[str]: List of file paths matching the criteria
+        
+    Examples:
+        - Python files in tools: find_files_in_directory("tools", "py")
+        - JavaScript files in frontend: find_files_in_directory("frontend", "js")
+        - Markdown files in docs: find_files_in_directory("docs", "md")
+    """
+    try:
+        # Call list_jarvis_files directly with ainvoke
+        pattern = f"*.{file_extension}" if not file_extension.startswith("*") else file_extension
+        result = await list_jarvis_files.ainvoke({"pattern": pattern, "directory": directory})
+        
+        logger.info(f"Found {len(result)} {file_extension} files in {directory} directory")
+        return result
+        
+    except Exception as e:
+        logger.error(f"Error finding {file_extension} files in {directory}: {e}")
+        raise ToolError(f"Failed to find files: {str(e)}")
+
+
 def get_file_tools():
     """Get all file tools for agent use."""
     return [
         list_jarvis_files,
+        find_files_in_directory,
         read_file_content,
         write_file_tool
     ]

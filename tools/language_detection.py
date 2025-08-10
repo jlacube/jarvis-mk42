@@ -21,7 +21,7 @@ Usage:
 """
 
 import logging
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Optional, Tuple, Any
 from dataclasses import dataclass
 
 from langchain_core.tools import tool
@@ -233,7 +233,7 @@ def detect_language(text: str) -> str:
 
 
 @tool
-def detect_language_with_confidence(text: str) -> Dict[str, any]:
+def detect_language_with_confidence(text: str) -> Dict[str, Any]:
     """
     Detect the primary language with detailed confidence information.
     
@@ -244,7 +244,7 @@ def detect_language_with_confidence(text: str) -> Dict[str, any]:
         text (str): The text to analyze for language detection
         
     Returns:
-        Dict[str, any]: Dictionary containing:
+        Dict[str, Any]: Dictionary containing:
             - language_code: ISO 639-1 language code
             - language_name: Human-readable language name  
             - confidence: Confidence score (0.0 to 1.0)
@@ -296,7 +296,7 @@ def detect_language_with_confidence(text: str) -> Dict[str, any]:
 
 
 @tool
-def detect_multiple_languages(text: str) -> Dict[str, any]:
+def detect_multiple_languages(text: str) -> Dict[str, Any]:
     """
     Detect all probable languages with confidence scores.
     
@@ -308,7 +308,7 @@ def detect_multiple_languages(text: str) -> Dict[str, any]:
         text (str): The text to analyze for language detection
         
     Returns:
-        Dict[str, any]: Dictionary containing:
+        Dict[str, Any]: Dictionary containing:
             - primary_language: Most likely language with details
             - all_languages: List of all probable languages
             - text_length: Length of analyzed text

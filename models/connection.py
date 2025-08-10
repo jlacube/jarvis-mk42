@@ -200,7 +200,7 @@ class DatabaseManager:
             import bcrypt
             
             settings = get_settings()
-            admin_password_hash = settings.security.get_user_password_hash("admin")
+            admin_password_hash = settings.get_user_password_hash("admin")
             
             if not admin_password_hash:
                 logger.warning("No admin password hash found in environment variables")
