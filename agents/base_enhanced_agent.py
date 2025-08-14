@@ -98,7 +98,7 @@ class AgentMetrics:
     last_activity: Optional[datetime] = None
 
 
-class BaseEnhancedAgent(MessageHandler, ABC):
+class BaseEnhancedAgent(ABC):
     """
     Base class for all enhanced agents with communication framework integration.
     
@@ -129,8 +129,11 @@ class BaseEnhancedAgent(MessageHandler, ABC):
             context_manager: Context manager for shared state
             conflict_resolver: Conflict resolver for handling conflicts
         """
-        # Initialize MessageHandler
-        super().__init__(handler_id=agent_id)
+        # Initialize message handler properties
+        self.handler_id = agent_id
+        self.is_active = True
+        self.message_count = 0
+        self.last_message_at: Optional[datetime] = None
         
         self.agent_id = agent_id
         self.agent_type = agent_type
