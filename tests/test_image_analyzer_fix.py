@@ -15,6 +15,7 @@ images even when they're attached to the chat.
 import asyncio
 import sys
 import os
+import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from typing import List
 
@@ -30,6 +31,7 @@ class MockImageElement:
         self.content = content
         self.mime = mime
 
+@pytest.mark.asyncio
 async def test_image_analyzer_with_images():
     """Test the image analyzer when images are available in session"""
     print("=" * 60)
@@ -83,6 +85,7 @@ async def test_image_analyzer_with_images():
     
     return True
 
+@pytest.mark.asyncio
 async def test_image_analyzer_without_images():
     """Test the image analyzer when no images are available"""
     print("\n" + "=" * 60)
@@ -107,6 +110,7 @@ async def test_image_analyzer_without_images():
                 print(f"❌ Unexpected error: {e}")
                 return False
 
+@pytest.mark.asyncio
 async def test_tool_name_consistency():
     """Test that the tool name is consistently referenced"""
     print("\n" + "=" * 60)

@@ -7,6 +7,7 @@ the communication framework and language detection system.
 """
 
 import pytest
+import pytest_asyncio
 import asyncio
 from unittest.mock import Mock, patch, AsyncMock
 from datetime import datetime
@@ -18,6 +19,7 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from agents.enhanced_research_agent import EnhancedResearchAgent, create_enhanced_research_agent
+from agents.base_enhanced_agent import AgentState
 from utils.research_strategies import (
     ResearchContext,
     ResearchResult,
@@ -39,7 +41,7 @@ from tools.enhanced_research_tools import (
 class TestEnhancedResearchAgent:
     """Test class for Enhanced Research Agent"""
     
-    @pytest.fixture
+    @pytest_asyncio.fixture
     async def agent(self):
         """Create test agent instance"""
         agent = EnhancedResearchAgent(
@@ -53,9 +55,9 @@ class TestEnhancedResearchAgent:
     async def test_agent_initialization(self, agent):
         """Test agent initialization"""
         assert agent.agent_id == "test_research_agent"
-        assert agent.name == "Enhanced Research Agent"
-        assert agent.agent_type == "research"
-        assert agent.state.status == "ready"
+        assert agent.agent_name == "Enhanced Research Agent"
+        assert agent.agent_type.value == "research"
+        assert agent.state == AgentState.READY
         assert len(agent.research_strategies) > 0
         assert len(agent.research_tools) > 0
         assert len(agent.capabilities.supported_languages) > 0
@@ -328,7 +330,8 @@ class TestResearchStrategies:
         strategy = select_optimal_strategy(research_context)
         assert isinstance(strategy, FactVerificationStrategy)
         
-        # Test real-time priority
+        # Test real-time priority (reset verification_required)
+        research_context.verification_required = False
         research_context.time_sensitivity = "real_time"
         research_context.query = "latest breaking news"
         strategy = select_optimal_strategy(research_context)
@@ -518,39 +521,54 @@ class TestIntegration:
             with patch('tools.language_detection.detect_language_with_confidence') as mock_lang:
                 mock_lang.ainvoke = AsyncMock(return_value={"language": "english", "confidence": 0.99})
                 
-                # Perform comprehensive research
-                result = await agent.conduct_research(
-                    query="artificial intelligence trends and implications",
-                    domain="technology",
-                    priority="high",
-                    languages=["english"],
-                    verification_required=True,
-                    max_depth=2,
-                    max_breadth=5
-                )
-                
-                # Verify comprehensive result structure
-                assert result["success"] is True
-                assert "research_id" in result
-                assert "strategy_used" in result
-                assert "context" in result
-                assert "results" in result
-                assert "quality_metrics" in result
-                assert "quality_assessment" in result
-                
-                # Verify quality metrics
-                quality_metrics = result["quality_metrics"]
-                assert "overall_quality_score" in quality_metrics
-                assert "confidence" in quality_metrics
-                assert "verification_status" in quality_metrics
-                assert "sources_analyzed" in quality_metrics
-                assert "languages_covered" in quality_metrics
-                
-                # Verify context preservation
-                context = result["context"]
-                assert context["domain"] == "technology"
-                assert context["priority"] == "high"
-                assert context["verification_required"] is True
+                with patch('tools.research_tools.fetch_url_content') as mock_fetch:
+                    mock_fetch.return_value = "Comprehensive AI research content about trends and implications in technology."
+                    
+                    with patch('tools.enhanced_research_tools.assess_source_credibility') as mock_credibility:
+                        mock_credibility.ainvoke = AsyncMock(return_value={
+                            "url": "https://example.com/ai-research",
+                            "domain": "example.com",
+                            "authority_score": 0.8,
+                            "recency_score": 0.7,
+                            "consistency_score": 0.8,
+                            "overall_score": 0.75,
+                            "reasoning": "Credible source with good content",
+                            "language": "english"
+                        })
+                        
+                        # Perform comprehensive research
+                        result = await agent.conduct_research(
+                            query="artificial intelligence trends and implications",
+                            domain="technology",
+                            priority="high",
+                            languages=["english"],
+                            verification_required=True,
+                            max_depth=2,
+                            max_breadth=5
+                        )
+                        
+                        # Verify comprehensive result structure
+                        assert result["success"] is True
+                        assert "research_id" in result
+                        assert "strategy_used" in result
+                        assert "context" in result
+                        assert "results" in result
+                        assert "quality_metrics" in result
+                        assert "quality_assessment" in result
+                        
+                        # Verify quality metrics
+                        quality_metrics = result["quality_metrics"]
+                        assert "overall_quality_score" in quality_metrics
+                        assert "confidence" in quality_metrics
+                        assert "verification_status" in quality_metrics
+                        assert "sources_analyzed" in quality_metrics
+                        assert "languages_covered" in quality_metrics
+                        
+                        # Verify context preservation
+                        context = result["context"]
+                        assert context["domain"] == "technology"
+                        assert context["priority"] == "high"
+                        assert context["verification_required"] is True
         
         # Test research history
         history = await agent.get_research_history()

@@ -11,6 +11,7 @@ with the Google GenAI API.
 import asyncio
 import sys
 import os
+import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from typing import List
 
@@ -26,6 +27,7 @@ class MockImageElement:
         self.content = content
         self.mime = mime
 
+@pytest.mark.asyncio
 async def test_vision_schema_compatibility():
     """Test that the vision tool schema is compatible with Google GenAI API"""
     print("=" * 60)
@@ -68,6 +70,7 @@ async def test_vision_schema_compatibility():
     
     return True
 
+@pytest.mark.asyncio
 async def test_vision_tool_with_fixed_schema():
     """Test the vision tool with the fixed schema"""
     print("\n" + "=" * 60)
@@ -139,6 +142,7 @@ async def test_vision_tool_with_fixed_schema():
     
     return True
 
+@pytest.mark.asyncio
 async def test_backwards_compatibility():
     """Test that the vision tool still works with the expected data structure"""
     print("\n" + "=" * 60)

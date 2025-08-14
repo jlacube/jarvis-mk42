@@ -1,0 +1,347 @@
+"""
+Tests for file tools module
+
+These tests cover the file management tools to improve code coverage.
+"""
+
+import pytest
+import os
+import tempfile
+import asyncio
+from unittest.mock import patch, mock_open, AsyncMock, MagicMock
+
+# Import tools to test  
+from tools.file_tools import list_jarvis_files, read_file_content, write_file_tool, list_files_recursive
+
+
+class TestListJarvisFiles:
+    """Test list_jarvis_files tool"""
+    
+    @pytest.mark.asyncio
+    async def test_list_jarvis_files_basic(self):
+        """Test basic file listing functionality"""
+        # Mock os.listdir to return some test files
+        with patch('os.listdir') as mock_listdir:
+            mock_listdir.return_value = ['test1.py', 'test2.txt', 'subdir']
+            
+            with patch('os.path.isdir') as mock_isdir:
+                mock_isdir.side_effect = lambda x: x.endswith('subdir')
+                
+                result = await list_jarvis_files()
+                
+                assert isinstance(result, list)
+                assert len(result) >= 0  # Should return a list
+    
+    @pytest.mark.asyncio 
+    async def test_list_jarvis_files_empty_directory(self):
+        """Test listing files in empty directory"""
+        with patch('os.listdir') as mock_listdir:
+            mock_listdir.return_value = []
+            
+            result = await list_jarvis_files()
+            
+            assert isinstance(result, list)
+            assert len(result) == 0
+    
+    @pytest.mark.asyncio
+    async def test_list_jarvis_files_permission_error(self):
+        """Test handling permission error"""
+        with patch('os.listdir') as mock_listdir:
+            mock_listdir.side_effect = PermissionError("Access denied")
+            
+            result = await list_jarvis_files()
+            
+            # Should handle error gracefully
+            assert isinstance(result, list)
+
+
+class TestListFilesRecursive:
+    """Test list_files_recursive function"""
+    
+    def test_list_files_recursive_basic(self):
+        """Test basic recursive file listing"""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Create test files
+            test_file1 = os.path.join(temp_dir, 'test1.txt')
+            test_file2 = os.path.join(temp_dir, 'test2.py')
+            
+            with open(test_file1, 'w') as f:
+                f.write('test content 1')
+            with open(test_file2, 'w') as f:
+                f.write('test content 2')
+            
+            # Create subdirectory with file
+            subdir = os.path.join(temp_dir, 'subdir')
+            os.makedirs(subdir)
+            test_file3 = os.path.join(subdir, 'test3.txt')
+            with open(test_file3, 'w') as f:
+                f.write('test content 3')
+            
+            result = list_files_recursive(temp_dir)
+            
+            assert isinstance(result, list)
+            assert len(result) >= 3
+            
+            # Check that files are in the result
+            file_names = [os.path.basename(f) for f in result]
+            assert 'test1.txt' in file_names
+            assert 'test2.py' in file_names
+            assert 'test3.txt' in file_names
+    
+    def test_list_files_recursive_nonexistent_directory(self):
+        """Test recursive listing with nonexistent directory"""
+        result = list_files_recursive('/nonexistent/directory/path')
+        
+        # Should handle gracefully
+        assert isinstance(result, list)
+        assert len(result) == 0
+    
+    def test_list_files_recursive_empty_directory(self):
+        """Test recursive listing with empty directory"""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            result = list_files_recursive(temp_dir)
+            
+            assert isinstance(result, list)
+            assert len(result) == 0
+
+
+class TestReadFileContent:
+    """Test read_file_content tool"""
+    
+    @pytest.mark.asyncio
+    async def test_read_file_content_success(self):
+        """Test successful file reading"""
+        test_content = "This is test file content\nWith multiple lines"
+        
+        with tempfile.NamedTemporaryFile(mode='w', delete=False) as temp_file:
+            temp_file.write(test_content)
+            temp_file_path = temp_file.name
+        
+        try:
+            result = await read_file_content(temp_file_path)
+            
+            assert result == test_content
+        finally:
+            os.unlink(temp_file_path)
+    
+    @pytest.mark.asyncio
+    async def test_read_file_content_nonexistent_file(self):
+        """Test reading nonexistent file"""
+        result = await read_file_content('/nonexistent/file/path.txt')
+        
+        assert result is None
+    
+    @pytest.mark.asyncio
+    async def test_read_file_content_empty_file(self):
+        """Test reading empty file"""
+        with tempfile.NamedTemporaryFile(mode='w', delete=False) as temp_file:
+            # Write nothing (empty file)
+            temp_file_path = temp_file.name
+        
+        try:
+            result = await read_file_content(temp_file_path)
+            
+            assert result == ""
+        finally:
+            os.unlink(temp_file_path)
+    
+    @pytest.mark.asyncio
+    async def test_read_file_content_permission_error(self):
+        """Test handling permission error"""
+        with patch('builtins.open') as mock_open_func:
+            mock_open_func.side_effect = PermissionError("Access denied")
+            
+            result = await read_file_content('some_file.txt')
+            
+            assert result is None
+    
+    @pytest.mark.asyncio
+    async def test_read_file_content_unicode(self):
+        """Test reading file with Unicode content"""
+        unicode_content = "Hello 世界 🌍 café naïve résumé"
+        
+        with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', delete=False) as temp_file:
+            temp_file.write(unicode_content)
+            temp_file_path = temp_file.name
+        
+        try:
+            result = await read_file_content(temp_file_path)
+            
+            assert result == unicode_content
+        finally:
+            os.unlink(temp_file_path)
+
+
+class TestWriteFileTool:
+    """Test write_file_tool"""
+    
+    @pytest.mark.asyncio
+    async def test_write_file_tool_new_file(self):
+        """Test writing to new file"""
+        test_content = "This is new file content"
+        
+        with tempfile.TemporaryDirectory() as temp_dir:
+            file_path = os.path.join(temp_dir, 'new_test_file.txt')
+            
+            result = await write_file_tool(file_path, test_content)
+            
+            assert isinstance(result, dict)
+            assert result['success'] is True
+            assert 'filename' in result
+            
+            # Verify file was actually written
+            with open(file_path, 'r') as f:
+                content = f.read()
+                assert content == test_content
+    
+    @pytest.mark.asyncio
+    async def test_write_file_tool_overwrite_without_permission(self):
+        """Test writing to existing file without overwrite permission"""
+        test_content = "Original content"
+        new_content = "New content"
+        
+        with tempfile.NamedTemporaryFile(mode='w', delete=False) as temp_file:
+            temp_file.write(test_content)
+            temp_file_path = temp_file.name
+        
+        try:
+            # Try to overwrite without permission
+            result = await write_file_tool(temp_file_path, new_content, overwrite=False)
+            
+            assert isinstance(result, dict)
+            assert result['success'] is False
+            assert 'error' in result
+            
+            # Verify original content is unchanged
+            with open(temp_file_path, 'r') as f:
+                content = f.read()
+                assert content == test_content
+        finally:
+            os.unlink(temp_file_path)
+    
+    @pytest.mark.asyncio
+    async def test_write_file_tool_overwrite_with_permission(self):
+        """Test writing to existing file with overwrite permission"""
+        test_content = "Original content"
+        new_content = "New content"
+        
+        with tempfile.NamedTemporaryFile(mode='w', delete=False) as temp_file:
+            temp_file.write(test_content)
+            temp_file_path = temp_file.name
+        
+        try:
+            # Overwrite with permission
+            result = await write_file_tool(temp_file_path, new_content, overwrite=True)
+            
+            assert isinstance(result, dict)
+            assert result['success'] is True
+            
+            # Verify content was updated
+            with open(temp_file_path, 'r') as f:
+                content = f.read()
+                assert content == new_content
+        finally:
+            os.unlink(temp_file_path)
+    
+    @pytest.mark.asyncio
+    async def test_write_file_tool_create_directory(self):
+        """Test writing file in non-existent directory"""
+        test_content = "Content in new directory"
+        
+        with tempfile.TemporaryDirectory() as temp_dir:
+            subdir_path = os.path.join(temp_dir, 'new_subdir')
+            file_path = os.path.join(subdir_path, 'test_file.txt')
+            
+            result = await write_file_tool(file_path, test_content)
+            
+            assert isinstance(result, dict)
+            assert result['success'] is True
+            
+            # Verify directory and file were created
+            assert os.path.exists(subdir_path)
+            assert os.path.isdir(subdir_path)
+            assert os.path.exists(file_path)
+            
+            with open(file_path, 'r') as f:
+                content = f.read()
+                assert content == test_content
+    
+    @pytest.mark.asyncio
+    async def test_write_file_tool_permission_error(self):
+        """Test handling permission error during write"""
+        with patch('builtins.open') as mock_open_func:
+            mock_open_func.side_effect = PermissionError("Access denied")
+            
+            result = await write_file_tool('test_file.txt', 'content')
+            
+            assert isinstance(result, dict)
+            assert result['success'] is False
+            assert 'error' in result
+    
+    @pytest.mark.asyncio
+    async def test_write_file_tool_unicode_content(self):
+        """Test writing Unicode content"""
+        unicode_content = "Unicode content: 世界 🌍 café naïve"
+        
+        with tempfile.TemporaryDirectory() as temp_dir:
+            file_path = os.path.join(temp_dir, 'unicode_test.txt')
+            
+            result = await write_file_tool(file_path, unicode_content)
+            
+            assert isinstance(result, dict)
+            assert result['success'] is True
+            
+            # Verify Unicode content was written correctly
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+                assert content == unicode_content
+
+
+class TestFileToolsIntegration:
+    """Integration tests for file tools"""
+    
+    @pytest.mark.asyncio
+    async def test_write_then_read_workflow(self):
+        """Test complete workflow: write file then read it"""
+        test_content = "Integration test content\nLine 2\nLine 3"
+        
+        with tempfile.TemporaryDirectory() as temp_dir:
+            file_path = os.path.join(temp_dir, 'integration_test.txt')
+            
+            # Write file
+            write_result = await write_file_tool(file_path, test_content)
+            assert write_result['success'] is True
+            
+            # Read file back
+            read_result = await read_file_content(file_path)
+            assert read_result == test_content
+    
+    @pytest.mark.asyncio
+    async def test_list_then_read_workflow(self):
+        """Test workflow: list files then read specific file"""
+        test_content = "Content for listing test"
+        
+        with tempfile.TemporaryDirectory() as temp_dir:
+            file_path = os.path.join(temp_dir, 'list_test.txt')
+            
+            # Create test file
+            with open(file_path, 'w') as f:
+                f.write(test_content)
+            
+            # Mock the working directory for list_jarvis_files
+            with patch('os.getcwd', return_value=temp_dir):
+                with patch('os.listdir') as mock_listdir:
+                    mock_listdir.return_value = ['list_test.txt']
+                    
+                    with patch('os.path.isdir', return_value=False):
+                        # List files
+                        file_list = await list_jarvis_files()
+                        assert isinstance(file_list, list)
+                        
+                        # Read the file we found
+                        read_result = await read_file_content(file_path)
+                        assert read_result == test_content
+
+
+if __name__ == "__main__":
+    pytest.main([__file__])

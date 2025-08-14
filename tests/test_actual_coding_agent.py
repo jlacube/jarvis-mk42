@@ -6,11 +6,13 @@ Test the exact coding agent creation to reproduce the Annotated error.
 import sys
 import traceback
 import os
+import pytest
 
 # Set up the environment like the main app
 os.chdir("c:\\Sandbox\\Git\\jarvis-mk42")
 sys.path.insert(0, "c:\\Sandbox\\Git\\jarvis-mk42")
 
+@pytest.mark.asyncio
 async def test_coding_agent_creation():
     """Test creating the actual coding agent to see if we get the Annotated error."""
     try:

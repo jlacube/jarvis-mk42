@@ -5,12 +5,14 @@ Test script for geometry_tool to verify it works correctly.
 import asyncio
 import sys
 import os
+import pytest
 
 # Add the current directory to Python path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from tools.geometry_tool import geometry_tool
 
+@pytest.mark.asyncio
 async def test_geometry_tool():
     """Test the geometry_tool with various inputs."""
     

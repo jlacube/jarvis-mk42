@@ -185,3 +185,8 @@ async def calculator_tool(expression: str) -> str:
 #     ]
 #     for case in test_cases:
 #         print(f"'{case}': {calculate(case)}")
+
+
+def get_math_tools():
+    """Return the list of math tools."""
+    return [calculator_tool]

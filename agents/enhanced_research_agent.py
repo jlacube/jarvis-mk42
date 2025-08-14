@@ -16,7 +16,7 @@ from typing import Dict, List, Optional, Any, Tuple
 from datetime import datetime
 import json
 
-from agents.base_enhanced_agent import BaseEnhancedAgent, AgentCapabilities, AgentMetrics
+from agents.base_enhanced_agent import BaseEnhancedAgent, AgentCapabilities, AgentMetrics, AgentState
 from communication.protocols import AgentType
 from utils.research_strategies import (
     ResearchStrategy,
@@ -124,15 +124,15 @@ class EnhancedResearchAgent(BaseEnhancedAgent):
                 logger.warning(f"Language detection integration issue: {e}")
             
             # Update agent state
-            self.state.status = "ready"
-            self.state.last_activity = datetime.now()
+            self.state = AgentState.READY
+            self.metrics.last_activity = datetime.now()
             
             logger.info("Enhanced Research Agent initialization completed successfully")
             return True
             
         except Exception as e:
             logger.error(f"Enhanced Research Agent initialization failed: {e}")
-            self.state.status = "error"
+            self.state = AgentState.ERROR
             return False
     
     async def conduct_research(
@@ -288,7 +288,7 @@ class EnhancedResearchAgent(BaseEnhancedAgent):
                 "timestamp": start_time.isoformat(),
                 "agent_info": {
                     "agent_id": self.agent_id,
-                    "agent_name": self.name,
+                    "agent_name": self.agent_name,
                     "version": "enhanced_v1.0"
                 }
             }
@@ -312,8 +312,8 @@ class EnhancedResearchAgent(BaseEnhancedAgent):
                 )
             
             # Update state
-            self.state.last_activity = datetime.now()
-            self.state.messages_processed += 1
+            self.metrics.last_activity = datetime.now()
+            self.metrics.messages_processed += 1
             
             logger.info(f"Enhanced research completed successfully: quality {research_result.quality_score:.2f}, confidence {research_result.confidence:.2f}")
             

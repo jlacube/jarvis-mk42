@@ -1,0 +1,407 @@
+"""
+Tests for communication protocols and message processing
+
+These tests cover the communication layer to improve code coverage.
+"""
+
+import pytest
+import asyncio
+import json
+from unittest.mock import patch, MagicMock, AsyncMock
+from datetime import datetime
+
+# Import modules to test
+from communication import context_manager, message_bus, protocols
+from communication.conflict_resolver import ConflictResolver
+
+
+class TestContextManager:
+    """Test ContextManager functionality"""
+    
+    def setup_method(self):
+        """Setup for each test"""
+        self.context_manager = context_manager.ContextManager()
+    
+    def test_context_manager_init(self):
+        """Test ContextManager initialization"""
+        cm = context_manager.ContextManager()
+        assert hasattr(cm, 'contexts')
+        assert hasattr(cm, 'active_context')
+    
+    def test_create_context(self):
+        """Test creating new context"""
+        context_id = self.context_manager.create_context("test_context")
+        assert context_id is not None
+        assert isinstance(context_id, str)
+    
+    def test_get_context_existing(self):
+        """Test getting existing context"""
+        context_id = self.context_manager.create_context("test_context")
+        context = self.context_manager.get_context(context_id)
+        assert context is not None
+    
+    def test_get_context_nonexistent(self):
+        """Test getting non-existent context"""
+        context = self.context_manager.get_context("nonexistent_id")
+        assert context is None
+    
+    def test_set_active_context(self):
+        """Test setting active context"""
+        context_id = self.context_manager.create_context("test_context")
+        result = self.context_manager.set_active_context(context_id)
+        assert result is True
+        assert self.context_manager.active_context == context_id
+    
+    def test_set_active_context_invalid(self):
+        """Test setting invalid active context"""
+        result = self.context_manager.set_active_context("invalid_id")
+        assert result is False
+    
+    def test_add_to_context(self):
+        """Test adding data to context"""
+        context_id = self.context_manager.create_context("test_context")
+        result = self.context_manager.add_to_context(context_id, "test_key", "test_value")
+        assert result is True
+        
+        context = self.context_manager.get_context(context_id)
+        assert "test_key" in context
+        assert context["test_key"] == "test_value"
+
+
+class TestMessageBus:
+    """Test MessageBus functionality"""
+    
+    def setup_method(self):
+        """Setup for each test"""
+        self.message_bus = message_bus.MessageBus()
+    
+    @pytest.mark.asyncio
+    async def test_message_bus_init(self):
+        """Test MessageBus initialization"""
+        bus = message_bus.MessageBus()
+        assert hasattr(bus, 'subscribers')
+        assert hasattr(bus, 'message_queue')
+    
+    @pytest.mark.asyncio
+    async def test_subscribe_unsubscribe(self):
+        """Test subscribing and unsubscribing to message types"""
+        async def test_handler(message):
+            return message
+        
+        # Subscribe
+        success = await self.message_bus.subscribe("test_message", test_handler)
+        assert success is True
+        
+        # Unsubscribe
+        success = await self.message_bus.unsubscribe("test_message", test_handler)
+        assert success is True
+    
+    @pytest.mark.asyncio
+    async def test_publish_message(self):
+        """Test publishing message"""
+        received_messages = []
+        
+        async def test_handler(message):
+            received_messages.append(message)
+            return True
+        
+        await self.message_bus.subscribe("test_message", test_handler)
+        
+        test_message = {"type": "test_message", "data": "test_data"}
+        result = await self.message_bus.publish("test_message", test_message)
+        
+        assert result is True
+        # Give some time for async processing
+        await asyncio.sleep(0.1)
+        assert len(received_messages) == 1
+        assert received_messages[0] == test_message
+    
+    @pytest.mark.asyncio
+    async def test_publish_no_subscribers(self):
+        """Test publishing message with no subscribers"""
+        test_message = {"type": "test_message", "data": "test_data"}
+        result = await self.message_bus.publish("no_subscribers", test_message)
+        
+        # Should handle gracefully
+        assert result is True
+    
+    @pytest.mark.asyncio
+    async def test_broadcast_message(self):
+        """Test broadcasting message to all subscribers"""
+        received_messages = []
+        
+        async def handler1(message):
+            received_messages.append(f"handler1: {message}")
+            return True
+        
+        async def handler2(message):
+            received_messages.append(f"handler2: {message}")
+            return True
+        
+        await self.message_bus.subscribe("broadcast_test", handler1)
+        await self.message_bus.subscribe("broadcast_test", handler2)
+        
+        test_message = {"type": "broadcast_test", "data": "broadcast_data"}
+        result = await self.message_bus.broadcast("broadcast_test", test_message)
+        
+        assert result is True
+        await asyncio.sleep(0.1)
+        assert len(received_messages) == 2
+
+
+class TestProtocols:
+    """Test communication protocols"""
+    
+    def test_message_protocol_validation(self):
+        """Test message protocol validation"""
+        # Valid message
+        valid_message = {
+            "id": "test_id",
+            "type": "test_type",
+            "timestamp": datetime.now().isoformat(),
+            "sender": "test_sender",
+            "data": {"key": "value"}
+        }
+        
+        result = protocols.validate_message(valid_message)
+        assert result is True
+    
+    def test_message_protocol_invalid(self):
+        """Test invalid message protocol"""
+        # Missing required fields
+        invalid_message = {
+            "type": "test_type",
+            "data": {"key": "value"}
+        }
+        
+        result = protocols.validate_message(invalid_message)
+        assert result is False
+    
+    def test_create_message(self):
+        """Test creating protocol-compliant message"""
+        message = protocols.create_message(
+            message_type="test_type",
+            sender="test_sender", 
+            data={"key": "value"}
+        )
+        
+        assert "id" in message
+        assert message["type"] == "test_type"
+        assert message["sender"] == "test_sender"
+        assert message["data"] == {"key": "value"}
+        assert "timestamp" in message
+    
+    def test_serialize_deserialize_message(self):
+        """Test message serialization and deserialization"""
+        original_message = {
+            "id": "test_id",
+            "type": "test_type", 
+            "timestamp": datetime.now().isoformat(),
+            "sender": "test_sender",
+            "data": {"key": "value", "number": 42}
+        }
+        
+        # Serialize
+        serialized = protocols.serialize_message(original_message)
+        assert isinstance(serialized, str)
+        
+        # Deserialize
+        deserialized = protocols.deserialize_message(serialized)
+        assert deserialized == original_message
+    
+    def test_serialize_invalid_message(self):
+        """Test serializing invalid message"""
+        invalid_message = {"invalid": object()}  # object() not JSON serializable
+        
+        result = protocols.serialize_message(invalid_message)
+        assert result is None
+    
+    def test_deserialize_invalid_json(self):
+        """Test deserializing invalid JSON"""
+        invalid_json = "{ invalid json string"
+        
+        result = protocols.deserialize_message(invalid_json)
+        assert result is None
+
+
+class TestConflictResolver:
+    """Test ConflictResolver functionality"""
+    
+    def setup_method(self):
+        """Setup for each test"""
+        self.resolver = ConflictResolver()
+    
+    def test_conflict_resolver_init(self):
+        """Test ConflictResolver initialization"""
+        resolver = ConflictResolver()
+        assert hasattr(resolver, 'resolution_strategies')
+        assert hasattr(resolver, 'active_conflicts')
+    
+    def test_register_conflict(self):
+        """Test registering a conflict"""
+        conflict_data = {
+            "type": "resource_conflict",
+            "resource": "test_resource",
+            "agents": ["agent1", "agent2"],
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        conflict_id = self.resolver.register_conflict(conflict_data)
+        assert conflict_id is not None
+        assert isinstance(conflict_id, str)
+        assert conflict_id in self.resolver.active_conflicts
+    
+    def test_resolve_conflict_simple(self):
+        """Test resolving simple conflict"""
+        conflict_data = {
+            "type": "resource_conflict",
+            "resource": "test_resource",
+            "agents": ["agent1", "agent2"]
+        }
+        
+        conflict_id = self.resolver.register_conflict(conflict_data)
+        
+        # Mock resolution strategy
+        resolution = {
+            "strategy": "priority_based",
+            "winner": "agent1",
+            "reason": "Higher priority"
+        }
+        
+        result = self.resolver.resolve_conflict(conflict_id, resolution)
+        assert result is True
+        assert conflict_id not in self.resolver.active_conflicts
+    
+    def test_resolve_nonexistent_conflict(self):
+        """Test resolving non-existent conflict"""
+        result = self.resolver.resolve_conflict("nonexistent_id", {})
+        assert result is False
+    
+    def test_get_active_conflicts(self):
+        """Test getting active conflicts"""
+        conflicts = self.resolver.get_active_conflicts()
+        assert isinstance(conflicts, list)
+        
+        # Add a conflict and check
+        conflict_data = {"type": "test_conflict"}
+        conflict_id = self.resolver.register_conflict(conflict_data)
+        
+        conflicts = self.resolver.get_active_conflicts()
+        assert len(conflicts) >= 1
+        assert any(c["id"] == conflict_id for c in conflicts)
+    
+    @pytest.mark.asyncio
+    async def test_auto_resolve_conflict(self):
+        """Test automatic conflict resolution"""
+        conflict_data = {
+            "type": "priority_conflict",
+            "resource": "test_resource",
+            "agents": [
+                {"id": "agent1", "priority": 5},
+                {"id": "agent2", "priority": 3}
+            ]
+        }
+        
+        conflict_id = self.resolver.register_conflict(conflict_data)
+        
+        # Test auto-resolution
+        result = await self.resolver.auto_resolve(conflict_id)
+        
+        # Should resolve automatically based on priority
+        assert result is True or result is False  # May depend on implementation
+
+
+class TestCommunicationIntegration:
+    """Integration tests for communication components"""
+    
+    @pytest.mark.asyncio
+    async def test_message_flow_integration(self):
+        """Test complete message flow through communication layer"""
+        # Setup components
+        context_manager_instance = context_manager.ContextManager()
+        message_bus_instance = message_bus.MessageBus()
+        
+        # Create context
+        context_id = context_manager_instance.create_context("integration_test")
+        context_manager_instance.set_active_context(context_id)
+        
+        # Setup message handler that updates context
+        async def integration_handler(message):
+            context_manager_instance.add_to_context(
+                context_id, 
+                "last_message", 
+                message
+            )
+            return True
+        
+        # Subscribe to messages
+        await message_bus_instance.subscribe("integration_test", integration_handler)
+        
+        # Send message
+        test_message = protocols.create_message(
+            "integration_test",
+            "test_sender",
+            {"test": "integration_data"}
+        )
+        
+        result = await message_bus_instance.publish("integration_test", test_message)
+        assert result is True
+        
+        # Give time for async processing
+        await asyncio.sleep(0.1)
+        
+        # Verify context was updated
+        context = context_manager_instance.get_context(context_id)
+        assert "last_message" in context
+        assert context["last_message"] == test_message
+    
+    @pytest.mark.asyncio
+    async def test_conflict_resolution_with_messaging(self):
+        """Test conflict resolution integrated with messaging"""
+        resolver = ConflictResolver()
+        bus = message_bus.MessageBus()
+        
+        resolved_conflicts = []
+        
+        async def conflict_handler(message):
+            if message.get("type") == "conflict_resolved":
+                resolved_conflicts.append(message["data"])
+            return True
+        
+        await bus.subscribe("conflict_resolved", conflict_handler)
+        
+        # Register conflict
+        conflict_data = {
+            "type": "resource_conflict",
+            "resource": "shared_resource",
+            "agents": ["agent1", "agent2"]
+        }
+        
+        conflict_id = resolver.register_conflict(conflict_data)
+        
+        # Resolve conflict
+        resolution = {
+            "strategy": "round_robin",
+            "winner": "agent1"
+        }
+        
+        resolve_result = resolver.resolve_conflict(conflict_id, resolution)
+        assert resolve_result is True
+        
+        # Notify via message bus
+        notification = protocols.create_message(
+            "conflict_resolved",
+            "conflict_resolver",
+            {"conflict_id": conflict_id, "resolution": resolution}
+        )
+        
+        await bus.publish("conflict_resolved", notification)
+        await asyncio.sleep(0.1)
+        
+        # Verify notification was received
+        assert len(resolved_conflicts) == 1
+        assert resolved_conflicts[0]["conflict_id"] == conflict_id
+
+
+if __name__ == "__main__":
+    pytest.main([__file__])

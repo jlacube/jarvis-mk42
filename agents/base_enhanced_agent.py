@@ -87,8 +87,11 @@ class AgentMetrics:
     tasks_completed: int = 0
     messages_sent: int = 0
     messages_received: int = 0
+    messages_processed: int = 0
     conflicts_participated: int = 0
     conflicts_resolved: int = 0
+    total_requests: int = 0
+    successful_requests: int = 0
     failed_requests: int = 0
     average_response_time: float = 0.0
     success_rate: float = 1.0

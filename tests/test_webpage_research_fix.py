@@ -6,10 +6,12 @@ Test script to verify the webpage research tool fix
 import asyncio
 import sys
 import os
+import pytest
 
 # Add the project root to Python path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+@pytest.mark.asyncio
 async def test_webpage_research_tool():
     """Test that webpage research tool works without APIError issues"""
     print("Testing webpage research tool fix...")
