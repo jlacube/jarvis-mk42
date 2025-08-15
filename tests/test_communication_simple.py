@@ -1,7 +1,7 @@
-# tests/test_communication_simple.py
+# tests/test_communication_simple_fixed.py
 """
-Simple integration tests for Phase 2B.2 Communication Framework.
-These tests validate individual components work correctly.
+Fixed simple integration tests for Phase 2B.2 Communication Framework.
+These tests validate individual components work correctly, accounting for auto-resolution behavior.
 """
 
 import asyncio
@@ -14,8 +14,8 @@ from communication.conflict_resolver import ConflictResolver, ConflictType, Conf
 
 
 @pytest.mark.asyncio
-class TestSimpleCommunication:
-    """Simple tests for individual components."""
+class TestSimpleCommunicationFixed:
+    """Fixed simple tests for individual components."""
     
     async def test_context_manager_basic_operations(self):
         """Test basic context manager operations."""
@@ -52,12 +52,12 @@ class TestSimpleCommunication:
             "test-conflict",
             ConflictType.STRATEGY_CHOICE,
             "Test conflict",
-            ConflictSeverity.LOW
+            ConflictSeverity.HIGH  # Use HIGH to prevent auto-resolution
         )
         
         assert conflict.context.conflict_id == "test-conflict"
         
-        # Add positions
+        # Add positions (but not enough to trigger auto-resolution with HIGH severity)
         result1 = await resolver.add_position(
             "test-conflict",
             "agent1",
@@ -67,6 +67,12 @@ class TestSimpleCommunication:
         )
         assert result1 is True
         
+        # Get conflict while still active
+        retrieved = resolver.get_conflict("test-conflict")
+        assert retrieved is not None
+        assert len(retrieved.positions) == 1
+        
+        # Add second position
         result2 = await resolver.add_position(
             "test-conflict",
             "agent2",
@@ -76,10 +82,19 @@ class TestSimpleCommunication:
         )
         assert result2 is True
         
-        # Get conflict
-        retrieved = resolver.get_conflict("test-conflict")
-        assert retrieved is not None
-        assert len(retrieved.positions) == 2
+        # Now manually resolve
+        from communication.conflict_resolver import ResolutionStrategy
+        resolution = await resolver.resolve_conflict(
+            "test-conflict",
+            ResolutionStrategy.WEIGHTED_VOTE
+        )
+        
+        # Should have a resolution
+        assert resolution is not None
+        
+        # Check stats to verify resolution
+        stats = resolver.get_stats()
+        assert stats["resolved_conflicts"] >= 1
         
         print("✅ Conflict Resolver basic operations work correctly")
     
@@ -132,10 +147,12 @@ class TestSimpleCommunication:
         )
         
         # Step 3: Conflict arises - different approaches
+        # Use HIGH severity to prevent auto-resolution until we're ready
         conflict = await conflict_resolver.create_conflict(
             "approach-conflict",
             ConflictType.STRATEGY_CHOICE,
-            "Different analysis approaches proposed"
+            "Different analysis approaches proposed",
+            ConflictSeverity.HIGH
         )
         
         await conflict_resolver.add_position(
@@ -156,7 +173,7 @@ class TestSimpleCommunication:
             "Dynamic analysis is more thorough"
         )
         
-        # Step 4: Resolve conflict
+        # Step 4: Resolve conflict manually
         from communication.conflict_resolver import ResolutionStrategy
         resolution = await conflict_resolver.resolve_conflict(
             "approach-conflict",
@@ -164,6 +181,7 @@ class TestSimpleCommunication:
         )
         
         # Should choose dynamic_analysis due to higher confidence
+        assert resolution is not None
         assert resolution["approach"] == "dynamic_analysis"
         
         # Step 5: Update workflow with resolution

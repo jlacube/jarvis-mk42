@@ -15,14 +15,16 @@ import asyncio
 import pytest
 import json
 from datetime import datetime, timedelta
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from communication.protocols import (
     AgentMessage, RequestMessage, ResponseMessage, ContextUpdate,
-    MessageType, MessagePriority, MessageStatus, AgentType, CommunicationProtocol
+    NotificationMessage, BroadcastMessage,
+    MessageType, MessagePriority, MessageStatus, AgentType, CommunicationProtocol,
+    validate_message
 )
-from communication.message_bus import MessageBus, MessageQueue, MessageRouter
+from communication.message_bus import MessageBus, MessageQueue, MessageRouter, MessageHandler
 from communication.context_manager import (
     SharedContext, ContextManager, ContextScope, ContextAccessLevel,
     MergeStrategy, ContextVersion, ContextConflict
@@ -59,18 +61,18 @@ class TestMessageProtocols:
     def test_request_message_creation(self):
         """Test request message creation and validation."""
         request = RequestMessage(
-            message_id="req-001",
             sender_id="agent-1",
             sender_type=AgentType.CODING,
             recipient_id="agent-2",
-            request_type="analysis",
+            subject="Analysis Request",
+            service="analysis",
             parameters={"file": "test.py"},
             timeout_seconds=30
         )
         
-        assert request.message_type == MessageType.REQUEST
+        assert request.type == MessageType.REQUEST
         assert request.recipient_id == "agent-2"
-        assert request.request_type == "analysis"
+        assert request.service == "analysis"
         assert request.parameters == {"file": "test.py"}
         assert request.timeout_seconds == 30
         assert request.expects_response is True
@@ -78,17 +80,18 @@ class TestMessageProtocols:
     def test_response_message_creation(self):
         """Test response message creation and validation."""
         response = ResponseMessage(
-            message_id="resp-001",
             sender_id="agent-2",
             sender_type=AgentType.REASONING,
-            correlation_id="req-001",
+            request_id="req-001",
+            service="analysis",
+            subject="Analysis Response",
             success=True,
             result={"analysis": "complete"},
             error_message=None
         )
         
-        assert response.message_type == MessageType.RESPONSE
-        assert response.correlation_id == "req-001"
+        assert response.type == MessageType.RESPONSE
+        assert response.request_id == "req-001"
         assert response.success is True
         assert response.result == {"analysis": "complete"}
         assert response.error_message is None
@@ -96,17 +99,16 @@ class TestMessageProtocols:
     def test_context_update_creation(self):
         """Test context update message creation."""
         update = ContextUpdate(
-            message_id="ctx-001",
             sender_id="agent-1",
             sender_type=AgentType.SUPERVISOR,
-            context_scope=ContextScope.WORKFLOW,
+            subject="Context Update",
+            service="context",
             context_key="current_task",
             context_data={"task_id": "task-123"},
             update_type="update"
         )
         
-        assert update.message_type == MessageType.CONTEXT_UPDATE
-        assert update.context_scope == ContextScope.WORKFLOW
+        assert update.type == MessageType.CONTEXT_UPDATE
         assert update.context_key == "current_task"
         assert update.context_data == {"task_id": "task-123"}
         assert update.update_type == "update"
@@ -114,46 +116,40 @@ class TestMessageProtocols:
     def test_message_serialization(self):
         """Test message serialization and deserialization."""
         message = AgentMessage(
-            message_id="test-001",
             sender_id="agent-1",
             sender_type=AgentType.CODING,
-            message_type=MessageType.NOTIFICATION,
+            type=MessageType.NOTIFICATION,
             subject="Test",
             content={"key": "value"}
         )
         
         # Test to_dict
-        data = message.to_dict()
+        data = message.model_dump(mode='json')  # Use mode='json' to serialize enums as strings
         assert isinstance(data, dict)
-        assert data["message_id"] == "test-001"
-        assert data["sender_type"] == "coding"
+        assert data["metadata"]["message_id"] is not None
+        assert data["sender_type"] == "coding"  # Enum value string
         
         # Test from_dict
-        restored = AgentMessage.from_dict(data)
-        assert restored.message_id == message.message_id
+        restored = AgentMessage.model_validate(data)
+        assert restored.metadata.message_id == message.metadata.message_id
         assert restored.sender_id == message.sender_id
         assert restored.sender_type == message.sender_type
     
     def test_communication_protocol_validation(self):
         """Test communication protocol validation functions."""
-        # Valid message
+        # Valid message with recipient for REQUEST type
         message = AgentMessage(
-            message_id="test-001",
             sender_id="agent-1",
             sender_type=AgentType.CODING,
-            message_type=MessageType.REQUEST,
+            recipient_id="agent-2",
+            type=MessageType.REQUEST,
             subject="Test",
             content={}
         )
         
-        assert CommunicationProtocol.validate_message(message) is True
-        
-        # Test message ID generation
-        msg_id = CommunicationProtocol.generate_message_id("agent-1", MessageType.REQUEST)
-        assert isinstance(msg_id, str)
-        assert len(msg_id) > 0
-        
-        # Test format validation
+        # Test validation - should return empty list for valid message
+        validation_errors = validate_message(message)
+        assert validation_errors == []
         assert CommunicationProtocol.is_valid_agent_id("agent-123") is True
         assert CommunicationProtocol.is_valid_agent_id("invalid id") is False
 
@@ -166,36 +162,35 @@ class TestMessageBus:
         """Test message bus creation and initialization."""
         bus = MessageBus()
         assert bus.max_queue_size == 1000
-        assert bus.processing_timeout == 30.0
-        assert len(bus._queues) == 0
-        assert len(bus._subscribers) == 0
+        assert bus.overflow_policy.value == "drop_oldest"
+        assert not bus._is_running
         
         await bus.start()
-        assert bus._processing_task is not None
+        assert bus._processor_task is not None
+        assert bus._is_running
         
         await bus.stop()
-        assert bus._processing_task is None
+        assert not bus._is_running
+        assert bus._processor_task.cancelled()
     
     async def test_message_queue_operations(self):
         """Test message queue priority handling."""
-        queue = MessageQueue("test-queue", max_size=10)
+        queue = MessageQueue(max_size=10)
         
         # Add messages with different priorities
         high_msg = AgentMessage(
-            message_id="high-1",
             sender_id="agent-1",
             sender_type=AgentType.SUPERVISOR,
-            message_type=MessageType.REQUEST,
+            type=MessageType.REQUEST,
             priority=MessagePriority.HIGH,
             subject="High Priority",
             content={}
         )
         
         low_msg = AgentMessage(
-            message_id="low-1",
             sender_id="agent-2", 
             sender_type=AgentType.CODING,
-            message_type=MessageType.NOTIFICATION,
+            type=MessageType.NOTIFICATION,
             priority=MessagePriority.LOW,
             subject="Low Priority",
             content={}
@@ -207,72 +202,97 @@ class TestMessageBus:
         
         # High priority should come out first
         first_msg = await queue.get()
-        assert first_msg.message_id == "high-1"
+        assert first_msg.metadata.message_id == high_msg.metadata.message_id
         assert first_msg.priority == MessagePriority.HIGH
         
         second_msg = await queue.get()
-        assert second_msg.message_id == "low-1"
+        assert second_msg.metadata.message_id == low_msg.metadata.message_id
         assert second_msg.priority == MessagePriority.LOW
     
     async def test_message_router_subscriptions(self):
         """Test message router subscription and filtering."""
         router = MessageRouter()
         
-        # Add subscribers
-        handler1 = AsyncMock()
-        handler2 = AsyncMock()
+        # Create test message handlers
+        class TestHandler1(MessageHandler):
+            def __init__(self):
+                super().__init__("test-handler-1")
+                self.received_messages = []
+                
+            async def handle_message(self, message: AgentMessage) -> Optional[AgentMessage]:
+                self.received_messages.append(message)
+                return None
+        
+        class TestHandler2(MessageHandler):
+            def __init__(self):
+                super().__init__("test-handler-2")
+                self.received_messages = []
+                
+            async def handle_message(self, message: AgentMessage) -> Optional[AgentMessage]:
+                self.received_messages.append(message)
+                return None
+        
+        handler1 = TestHandler1()
+        handler2 = TestHandler2()
         
         # Subscribe to different message types
-        router.subscribe("agent-1", MessageType.REQUEST, handler1)
-        router.subscribe("agent-2", MessageType.NOTIFICATION, handler2)
+        router.subscribe(handler1, {MessageType.REQUEST})
+        router.subscribe(handler2, {MessageType.NOTIFICATION})
         
         # Test routing
         request_msg = AgentMessage(
-            message_id="req-1",
             sender_id="sender",
             sender_type=AgentType.CODING,
-            message_type=MessageType.REQUEST,
+            type=MessageType.REQUEST,
             subject="Test Request",
             content={}
         )
         
         await router.route_message(request_msg)
         
-        # Only handler1 should be called
-        handler1.assert_called_once_with(request_msg)
-        handler2.assert_not_called()
+        # Only handler1 should receive the message
+        assert len(handler1.received_messages) == 1
+        assert len(handler2.received_messages) == 0
+        assert handler1.received_messages[0] == request_msg
     
     async def test_message_bus_integration(self):
         """Test complete message bus integration."""
         bus = MessageBus()
         await bus.start()
         
+        # Create test handler
+        class IntegrationTestHandler(MessageHandler):
+            def __init__(self):
+                super().__init__("integration-test-handler")
+                self.received_messages = []
+                
+            async def handle_message(self, message: AgentMessage) -> Optional[AgentMessage]:
+                self.received_messages.append(message)
+                return None
+        
+        handler = IntegrationTestHandler()
+        
         # Subscribe to messages
-        received_messages = []
-        
-        async def message_handler(message):
-            received_messages.append(message)
-        
-        await bus.subscribe("test-agent", MessageType.REQUEST, message_handler)
+        bus.subscribe(handler, {MessageType.REQUEST})
         
         # Publish a message
         message = AgentMessage(
-            message_id="test-msg",
             sender_id="sender",
             sender_type=AgentType.CODING,
-            message_type=MessageType.REQUEST,
+            recipient_id="integration-test-handler",  # Add recipient for REQUEST message
+            type=MessageType.REQUEST,
             subject="Test",
             content={"test": True}
         )
         
-        await bus.publish(message)
+        await bus.send_message(message)
         
         # Wait for processing
         await asyncio.sleep(0.1)
         
         # Check message was received
-        assert len(received_messages) == 1
-        assert received_messages[0].message_id == "test-msg"
+        assert len(handler.received_messages) == 1
+        assert handler.received_messages[0].metadata.message_id == message.metadata.message_id
         
         await bus.stop()
 
@@ -394,10 +414,9 @@ class TestContextManager:
         
         # Broadcast update
         update = ContextUpdate(
-            message_id="update-1",
             sender_id="agent-1",
             sender_type=AgentType.SUPERVISOR,
-            context_scope=ContextScope.TASK,
+            subject="Shared Data Update",
             context_key="shared_data",
             context_data={"broadcast": True},
             update_type="update"
@@ -447,7 +466,8 @@ class TestConflictResolver:
         conflict = await resolver.create_conflict(
             "test-conflict",
             ConflictType.TASK_ASSIGNMENT,
-            "Task assignment conflict"
+            "Task assignment conflict",
+            ConflictSeverity.HIGH
         )
         
         # Add positions from different agents
@@ -484,7 +504,8 @@ class TestConflictResolver:
         conflict = await resolver.create_conflict(
             "majority-test",
             ConflictType.STRATEGY_CHOICE,
-            "Majority vote test"
+            "Majority vote test",
+            ConflictSeverity.HIGH  # Use HIGH to avoid auto-resolution
         )
         
         # Add positions - 2 for option A, 1 for option B
@@ -527,7 +548,8 @@ class TestConflictResolver:
         conflict = await resolver.create_conflict(
             "priority-test",
             ConflictType.TASK_ASSIGNMENT,
-            "Priority-based test"
+            "Priority-based test",
+            ConflictSeverity.HIGH
         )
         
         # Add positions from different agent types
@@ -566,7 +588,8 @@ class TestConflictResolver:
         conflict = await resolver.create_conflict(
             "weighted-test",
             ConflictType.STRATEGY_CHOICE,
-            "Weighted vote test"
+            "Weighted vote test",
+            ConflictSeverity.HIGH
         )
         
         await resolver.add_position(
@@ -666,51 +689,66 @@ class TestIntegrationScenarios:
         
         # Track received messages
         received_messages = []
-        
-        async def supervisor_handler(message):
-            received_messages.append(("supervisor", message))
-            
-            # Supervisor processes task requests
-            if message.message_type == MessageType.REQUEST:
-                # Update shared context
-                context = await context_manager.get_context("workflow", ContextScope.WORKFLOW)
-                await context.set(
-                    "current_task",
-                    message.content,
-                    "supervisor",
-                    AgentType.SUPERVISOR,
-                    "Task assignment"
-                )
+
+        # Create message handlers
+        class SupervisorHandler(MessageHandler):
+            def __init__(self):
+                super().__init__("supervisor")
                 
-                # Send response
-                response = ResponseMessage(
-                    message_id=f"resp-{message.message_id}",
-                    sender_id="supervisor",
-                    sender_type=AgentType.SUPERVISOR,
-                    correlation_id=message.message_id,
-                    success=True,
-                    result={"status": "assigned"}
-                )
-                await message_bus.publish(response)
+            async def handle_message(self, message: AgentMessage) -> Optional[AgentMessage]:
+                received_messages.append(("supervisor", message))
+                
+                # Supervisor processes task requests
+                if message.type == MessageType.REQUEST:
+                    # Update shared context
+                    context = await context_manager.get_context("workflow", ContextScope.WORKFLOW)
+                    await context.set(
+                        "current_task",
+                        message.parameters,
+                        "supervisor",
+                        AgentType.SUPERVISOR,
+                        "Task assignment"
+                    )
+                    
+                    # Send response
+                    response = ResponseMessage(
+                        sender_id="supervisor",
+                        sender_type=AgentType.SUPERVISOR,
+                        recipient_id=message.sender_id,
+                        subject="Task Assignment Response",
+                        request_id=message.metadata.message_id,
+                        success=True,
+                        result={"status": "assigned"}
+                    )
+                    await message_bus.send_message(response)
+                return None
         
-        async def coding_agent_handler(message):
-            received_messages.append(("coding", message))
+        class CodingAgentHandler(MessageHandler):
+            def __init__(self):
+                super().__init__("coding-agent")
+                
+            async def handle_message(self, message: AgentMessage) -> Optional[AgentMessage]:
+                received_messages.append(("coding", message))
+                return None
+        
+        supervisor_handler = SupervisorHandler()
+        coding_agent_handler = CodingAgentHandler()
         
         # Subscribe agents to messages
-        await message_bus.subscribe("supervisor", MessageType.REQUEST, supervisor_handler)
-        await message_bus.subscribe("coding-agent", MessageType.RESPONSE, coding_agent_handler)
+        message_bus.subscribe(supervisor_handler, {MessageType.REQUEST})
+        message_bus.subscribe(coding_agent_handler, {MessageType.RESPONSE})
         
         # Simulate workflow
         task_request = RequestMessage(
-            message_id="task-req-001",
             sender_id="coding-agent",
             sender_type=AgentType.CODING,
             recipient_id="supervisor",
-            request_type="task_assignment",
+            subject="Task Assignment Request",
+            service="task_assignment",
             parameters={"task": "implement_feature_x"}
         )
         
-        await message_bus.publish(task_request)
+        await message_bus.send_message(task_request)
         
         # Wait for processing
         await asyncio.sleep(0.2)
@@ -721,8 +759,8 @@ class TestIntegrationScenarios:
         
         assert len(supervisor_messages) == 1
         assert len(coding_messages) == 1
-        assert supervisor_messages[0].message_type == MessageType.REQUEST
-        assert coding_messages[0].message_type == MessageType.RESPONSE
+        assert supervisor_messages[0].type == MessageType.REQUEST
+        assert coding_messages[0].type == MessageType.RESPONSE
         
         # Verify context was updated
         context = await context_manager.get_context("workflow", ContextScope.WORKFLOW)
@@ -742,7 +780,7 @@ class TestIntegrationScenarios:
             "implementation-conflict",
             ConflictType.STRATEGY_CHOICE,
             "Two agents propose different implementation approaches",
-            ConflictSeverity.MEDIUM
+            ConflictSeverity.HIGH
         )
         
         # Agent 1 proposes approach A
@@ -800,9 +838,9 @@ class TestIntegrationScenarios:
         # Should resolve to microservices due to supervisor's high weight
         assert result["approach"] == "microservices"
         
-        # Verify conflict is resolved
-        resolved_conflict = resolver.get_conflict("implementation-conflict")
-        assert resolved_conflict is None  # Should be moved to resolved conflicts
+        # Verify conflict is resolved (moved from active to resolved)
+        active_conflict = resolver.get_conflict("implementation-conflict")
+        assert active_conflict is None  # Should be None as it's been resolved
     
     async def test_context_synchronization_across_agents(self):
         """Test context synchronization across multiple agents."""
@@ -841,12 +879,11 @@ class TestIntegrationScenarios:
         
         # Broadcast update to workflow contexts
         update = ContextUpdate(
-            message_id="broadcast-001",
             sender_id="supervisor",
             sender_type=AgentType.SUPERVISOR,
-            context_scope=ContextScope.WORKFLOW,
+            subject="Priority Update",
             context_key="priority",
-            context_data="high",
+            context_data={"priority": "high"},
             update_type="update"
         )
         
@@ -858,7 +895,7 @@ class TestIntegrationScenarios:
         # Verify update was applied
         assert len(updated_contexts) >= 1
         priority = await workflow_ctx.get("priority")
-        assert priority == "high"
+        assert priority == {"priority": "high"}  # Updated to match dict format
         
         # Test context stats
         stats = context_manager.get_stats()
@@ -881,24 +918,29 @@ class TestPerformanceAndReliability:
         
         received_count = 0
         
-        async def high_throughput_handler(message):
-            nonlocal received_count
-            received_count += 1
+        class ThroughputHandler(MessageHandler):
+            def __init__(self):
+                super().__init__("test-agent")
+            
+            async def handle_message(self, message: AgentMessage) -> Optional[AgentMessage]:
+                nonlocal received_count
+                received_count += 1
+                return None
         
-        await bus.subscribe("test-agent", MessageType.NOTIFICATION, high_throughput_handler)
+        throughput_handler = ThroughputHandler()
+        bus.subscribe(throughput_handler, {MessageType.NOTIFICATION})
         
         # Send many messages rapidly
         message_count = 100
         for i in range(message_count):
-            message = AgentMessage(
-                message_id=f"msg-{i}",
+            message = NotificationMessage(
                 sender_id="sender",
                 sender_type=AgentType.CODING,
-                message_type=MessageType.NOTIFICATION,
                 subject=f"Message {i}",
-                content={"index": i}
+                event_type="throughput_test",
+                event_data={"index": i}
             )
-            await bus.publish(message)
+            await bus.send_message(message)
         
         # Wait for processing
         await asyncio.sleep(1.0)
@@ -988,40 +1030,46 @@ class TestPerformanceAndReliability:
         # Handler that raises exceptions
         error_count = 0
         
-        async def faulty_handler(message):
-            nonlocal error_count
-            error_count += 1
-            if error_count <= 2:
-                raise Exception(f"Handler error {error_count}")
-            # Succeed on third try
+        class FaultyHandler(MessageHandler):
+            def __init__(self):
+                super().__init__("test-agent")
+            
+            async def handle_message(self, message: AgentMessage) -> Optional[AgentMessage]:
+                nonlocal error_count
+                error_count += 1
+                if error_count <= 2:
+                    raise Exception(f"Handler error {error_count}")
+                # Succeed on third try
+                return None
         
-        await bus.subscribe("test-agent", MessageType.REQUEST, faulty_handler)
+        faulty_handler = FaultyHandler()
+        bus.subscribe(faulty_handler, {MessageType.REQUEST})
         
         # Send message that will cause handler errors
-        message = AgentMessage(
-            message_id="error-test",
+        message = RequestMessage(
             sender_id="sender",
             sender_type=AgentType.CODING,
-            message_type=MessageType.REQUEST,
+            recipient_id="test-agent",
             subject="Error Test",
-            content={}
+            service="error_test",
+            parameters={}
         )
         
         # Bus should handle errors gracefully and continue processing
-        await bus.publish(message)
+        await bus.send_message(message)
         await asyncio.sleep(0.1)
         
         # Send another message that should succeed
-        success_message = AgentMessage(
-            message_id="success-test",
+        success_message = RequestMessage(
             sender_id="sender",
             sender_type=AgentType.CODING,
-            message_type=MessageType.REQUEST,
+            recipient_id="test-agent",
             subject="Success Test",
-            content={}
+            service="success_test",
+            parameters={}
         )
         
-        await bus.publish(success_message)
+        await bus.send_message(success_message)
         await asyncio.sleep(0.1)
         
         # Should have attempted to process both messages

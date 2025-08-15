@@ -5,10 +5,12 @@ Simple test to verify import fixes
 
 import asyncio
 import logging
+import pytest
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
+@pytest.mark.asyncio
 async def test_imports():
     """Test that all agent imports work correctly."""
     print("Testing agent imports after fix...")
@@ -48,7 +50,7 @@ async def test_imports():
     except Exception as e:
         print(f"❌ supervisor_agent import: {e}")
 
-
+@pytest.mark.asyncio
 async def test_simple_workflow():
     """Test a very simple workflow to verify basic functionality."""
     print("\n🧠 Testing Simple Workflow...")

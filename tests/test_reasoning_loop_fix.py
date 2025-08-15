@@ -6,10 +6,12 @@ Test script to verify the reasoning tool infinite loop fix
 import asyncio
 import sys
 import os
+import pytest
 
 # Add the project root to Python path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+@pytest.mark.asyncio
 async def test_reasoning_tools():
     """Test that reasoning tools work without infinite loops"""
     print("Testing reasoning tools for infinite loop fix...")

@@ -1,0 +1,58 @@
+# Coverage.py configuration for Jarvis-MK42
+# This file configures how coverage is measured and reported
+
+[run]
+source = .
+omit = 
+    tests/*
+    */__pycache__/*
+    */venv/*
+    */.venv/*
+    */node_modules/*
+    */.git/*
+    */migrations/*
+    */static/*
+    */media/*
+    setup.py
+    manage.py
+    conftest.py
+
+[report]
+# Regexes for lines to exclude from consideration
+exclude_lines =
+    # Have to re-enable the standard pragma
+    pragma: no cover
+
+    # Don't complain about missing debug-only code:
+    def __repr__
+    if self\.debug
+
+    # Don't complain if tests don't hit defensive assertion code:
+    raise AssertionError
+    raise NotImplementedError
+
+    # Don't complain if non-runnable code isn't run:
+    if 0:
+    if __name__ == .__main__.:
+
+    # Don't complain about abstract methods
+    @(abc\.)?abstractmethod
+
+# Show missing line numbers in the report
+show_missing = true
+
+# Treat partial branches as not covered
+skip_covered = false
+
+# Minimum coverage percentage to be considered passing
+fail_under = 70
+
+[html]
+directory = htmlcov
+title = Jarvis-MK42 Coverage Report
+
+[xml]
+output = coverage.xml
+
+[json]
+output = coverage.json

@@ -95,7 +95,8 @@ class AgentMessage(BaseModel):
     workflow_id: Optional[str] = Field(default=None, description="Associated workflow ID")
     
     class Config:
-        use_enum_values = True
+        # Removed use_enum_values = True to maintain enum objects instead of converting to strings
+        pass
 
 
 class RequestMessage(AgentMessage):
@@ -312,6 +313,17 @@ class CommunicationProtocol:
             context_id=context_id,
             workflow_id=workflow_id
         )
+
+    @staticmethod
+    def is_valid_agent_id(agent_id: str) -> bool:
+        """Validate agent ID format."""
+        if not agent_id or not isinstance(agent_id, str):
+            return False
+        
+        # Basic validation: no spaces, reasonable length, alphanumeric with dashes
+        import re
+        pattern = r'^[a-zA-Z0-9_-]+$'
+        return bool(re.match(pattern, agent_id)) and 3 <= len(agent_id) <= 50
 
 
 # Message validation utilities

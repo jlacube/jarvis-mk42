@@ -6,10 +6,12 @@ Test script to verify the enhanced file management tools
 import asyncio
 import sys
 import os
+import pytest
 
 # Add the project root to Python path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+@pytest.mark.asyncio
 async def test_file_management_tools():
     """Test all file management tools to ensure they work correctly"""
     print("Testing enhanced file management tools...")

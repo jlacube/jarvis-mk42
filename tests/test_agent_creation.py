@@ -5,10 +5,12 @@ Test the coding agent creation directly to see if ArgsSchema error occurs
 
 import sys
 import os
+import pytest
 
 # Add the project root to Python path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+@pytest.mark.asyncio
 async def test_coding_agent_creation():
     """Test creating the coding agent to see if ArgsSchema error occurs during agent creation"""
     

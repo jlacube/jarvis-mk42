@@ -13,6 +13,7 @@ Tests end-to-end multi-agent workflows with real agent coordination.
 
 import asyncio
 import logging
+import pytest
 from datetime import datetime
 from typing import Dict, Any
 
@@ -23,7 +24,7 @@ from communication.protocols import AgentType
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-
+@pytest.mark.asyncio
 async def test_simple_reasoning_workflow():
     """Test a simple workflow with reasoning agent only."""
     print("\n🧠 Testing Simple Reasoning Workflow...")
@@ -73,7 +74,7 @@ async def test_simple_reasoning_workflow():
         traceback.print_exc()
         return False
 
-
+@pytest.mark.asyncio
 async def test_complex_multi_agent_workflow():
     """Test a complex workflow requiring multiple agents."""
     print("\n🚀 Testing Complex Multi-Agent Workflow...")
@@ -124,7 +125,7 @@ async def test_complex_multi_agent_workflow():
         traceback.print_exc()
         return False
 
-
+@pytest.mark.asyncio
 async def test_coding_workflow():
     """Test a workflow that requires coding assistance."""
     print("\n💻 Testing Coding Workflow...")
@@ -175,7 +176,7 @@ async def test_coding_workflow():
         traceback.print_exc()
         return False
 
-
+@pytest.mark.asyncio
 async def test_task_analysis():
     """Test the task analysis capabilities."""
     print("\n🔍 Testing Task Analysis...")

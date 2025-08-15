@@ -5,6 +5,7 @@ Direct test of coding_tool functionality after removing sequential_thinking_tool
 
 import sys
 import os
+import pytest
 
 # Add the project root to Python path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -12,6 +13,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 # Import necessary modules
 from tools.agents_tools import coding_tool
 
+@pytest.mark.asyncio
 async def test_coding_tool():
     """Test the coding_tool directly to check for ArgsSchema errors"""
     

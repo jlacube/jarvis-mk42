@@ -6,6 +6,7 @@ Test script to verify coding_tool functionality works with Optional patch
 import asyncio
 import sys
 import os
+import pytest
 
 # Add the project root directory to the Python path
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -16,6 +17,7 @@ if project_root not in sys.path:
 # Import the coding_tool directly
 from tools.agents_tools import coding_tool
 
+@pytest.mark.asyncio
 async def test_coding_tool():
     """Test the coding_tool with Optional patch in place"""
     print("Testing coding_tool with Optional patch...")

@@ -11,13 +11,15 @@ class TestAppStartup(unittest.TestCase):
         """
         process = None
         try:
-            # Start the application as a subprocess
+            # Start the application as a subprocess using the virtual environment's Python
+            python_exe = os.path.join(os.path.dirname(os.path.dirname(__file__)), '.venv', 'Scripts', 'python.exe')
             process = subprocess.Popen(
-                ['python', 'app.py'],
+                [python_exe, 'app.py'],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
-                env=os.environ.copy()
+                env=os.environ.copy(),
+                cwd=os.path.dirname(os.path.dirname(__file__))
             )
 
             # Wait for a few seconds to see if any errors occur

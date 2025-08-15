@@ -23,7 +23,7 @@ class AuthorizationError(JarvisError):
     """Raised when user is not authorized for an action"""
     pass
 
-class ToolError(JarvisError):
+class ToolError(JarvisError, RuntimeError):
     """Raised when a tool fails to execute"""
     pass
 
@@ -46,14 +46,16 @@ class CoordinationError(JarvisError):
 class APIError(JarvisError):
     """Raised when an external API call fails"""
     def __init__(self, message: str, service: str, status_code: int = None, **kwargs):
-        super().__init__(message, **kwargs)
+        # Only pass supported kwargs to parent
+        super().__init__(message, kwargs.get('error_code'), kwargs.get('details'))
         self.service = service
         self.status_code = status_code
 
-class ValidationError(JarvisError):
+class ValidationError(JarvisError, ValueError):
     """Raised when input validation fails"""
     def __init__(self, message: str, field: str = None, value=None, **kwargs):
-        super().__init__(message, **kwargs)
+        # Only pass supported kwargs to parent
+        super().__init__(message, kwargs.get('error_code'), kwargs.get('details'))
         self.field = field
         self.value = value
 
